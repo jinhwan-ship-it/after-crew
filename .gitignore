@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+shots/r1-*
+shots/r2-*
+shots/r3-*
+shots/r4a-*
+shots/r4b-*

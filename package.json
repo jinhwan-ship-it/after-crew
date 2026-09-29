@@ -1,0 +1,13 @@
+{
+  "name": "after-crew-app-prototype",
+  "private": true,
+  "description": "애프터 크루 모바일 앱 프로토타입 (정적 HTML/CSS/JS, 빌드 없음)",
+  "scripts": {
+    "serve": "npx --yes http-server app -p 5173 -c-1",
+    "qa": "node qa/render.js",
+    "flow": "node qa/flow-check.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  }
+}

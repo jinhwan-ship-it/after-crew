@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>애프터 크루 · 앱 프로토타입</title>
+<meta name="theme-color" content="#1E3A4C">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ===== DESIGN.md v1.0 tokens, 한 곳에만 ===== */
+:root{
+  --bg:#F2F4F5; --surface:#FFFFFF; --text:#1E3A4C; --text-muted:#5B6F7C; --border:#D5DBDF;
+  --accent:#FFB547; --accent-soft:#FFF1D6; --text-on-dark-muted:#B7C3CB; --error:#B3261E;
+  /* 앱 밖(데스크 배경·폰 테두리) 전용, DESIGN.md 범위 밖 */ --desk-bg:#DCE1E5; --desk-line:#C5CCD2;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px; --s8:64px;
+  --r-pill:999px; --r-card:24px; --r-field:12px; --r-media:16px; --r-check:6px;
+  --font-kr:"Noto Sans KR",system-ui,sans-serif; --font-num:"Archivo","Noto Sans KR",sans-serif;
+  --t:150ms ease-out;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font-kr);color:var(--text);background:var(--desk-bg);word-break:keep-all;overflow-wrap:anywhere;-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.6;letter-spacing:-0.005em}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;letter-spacing:inherit}
+a{color:inherit}
+ul{list-style:none}
+:focus-visible{outline:3px solid var(--text);outline-offset:2px}
+.sheet:focus-visible{outline:none}
+.on-dark :focus-visible,.on-dark:focus-visible{outline-color:var(--accent)}
+.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 600ms ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* ===== 데스크 + 폰 프레임 ===== */
+.desk{min-height:100%;display:flex;align-items:flex-start;justify-content:center;gap:var(--s6);padding:var(--s6) var(--s4)}
+.phone{width:390px;height:844px;background:var(--bg);border-radius:44px;overflow:hidden;position:relative;display:flex;flex-direction:column;border:1px solid var(--desk-line)}
+.statusbar{height:44px;flex:0 0 44px;display:flex;align-items:center;justify-content:space-between;padding:0 var(--s5);font-family:var(--font-num);font-weight:700;font-size:15px;background:transparent;position:relative;z-index:3}
+.statusbar .sig{display:flex;gap:var(--s2);align-items:center}
+.statusbar.dark{color:var(--surface);background:var(--text)}
+#view{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;position:relative;scrollbar-width:none}
+#view::-webkit-scrollbar{display:none}
+.screen{min-height:100%;display:flex;flex-direction:column}
+.screen.dark{background:var(--text);color:var(--surface)}
+.tabbar{flex:0 0 64px;height:64px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:stretch;padding-bottom:0}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s1);font-size:12px;font-weight:500;color:var(--text-muted);min-height:44px}
+.tabbar button[aria-current="page"]{color:var(--text)}
+.tabbar svg{width:24px;height:24px}
+.demo{width:280px;background:var(--surface);border-radius:var(--r-media);padding:var(--s4);font-size:14px;line-height:1.5;color:var(--text-muted);display:flex;flex-direction:column;gap:var(--s3)}
+.demo h2{font-size:14px;font-weight:700;color:var(--text)}
+.demo button{border:1px solid var(--text-muted);border-radius:var(--r-pill);padding:8px 16px;font-size:14px;font-weight:500;color:var(--text);min-height:44px;text-align:left}
+.demo button:hover{background:var(--bg)}
+@media (max-width:760px){.desk{padding:0;gap:0}.phone{width:100%;height:100vh;height:100dvh;border-radius:0;border:0}.demo{display:none}}
+
+/* ===== 공통 ===== */
+.topbar{height:56px;display:flex;align-items:center;padding:0 var(--s3);gap:var(--s2);position:sticky;top:0;background:var(--bg);z-index:2}
+.dark .topbar{background:var(--text)}
+.topbar .title{flex:1;text-align:center;font-size:18px;font-weight:700;line-height:1.4}
+.topbar .title.left{text-align:left;padding-left:var(--s3);font-size:22px}
+.iconbtn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-pill);flex:0 0 44px}
+.iconbtn svg{width:24px;height:24px}
+.iconbtn:hover{background:rgba(30,58,76,.06)}
+.dark .iconbtn:hover{background:rgba(255,255,255,.08)}
+.textbtn{height:44px;padding:0 var(--s3);font-size:14px;font-weight:700;border-radius:var(--r-pill);display:inline-flex;align-items:center;gap:var(--s2)}
+.pad{padding:0 var(--s5)}
+.stack{display:flex;flex-direction:column}
+.g8{gap:var(--s2)}.g12{gap:var(--s3)}.g16{gap:var(--s4)}.g24{gap:var(--s5)}
+.mt8{margin-top:var(--s2)}.mt12{margin-top:var(--s3)}.mt16{margin-top:var(--s4)}.mt24{margin-top:var(--s5)}.mt32{margin-top:var(--s6)}
+.h1{font-size:28px;font-weight:700;line-height:1.35;letter-spacing:-0.015em;text-wrap:balance}
+.h2{font-size:22px;font-weight:700;line-height:1.4;letter-spacing:-0.01em}
+.h3{font-size:18px;font-weight:700;line-height:1.4;letter-spacing:-0.01em}
+.body{font-size:16px;line-height:1.6}
+.cap{font-size:14px;font-weight:500;line-height:1.5;letter-spacing:0}
+.muted{color:var(--text-muted)}
+.dark .muted{color:var(--text-on-dark-muted)}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+.num-l{font-family:var(--font-num);font-weight:700;font-size:36px;line-height:1.1;letter-spacing:-0.02em}
+.num-s{font-family:var(--font-num);font-weight:500;font-size:14px;line-height:1.4}
+.time{font-family:var(--font-num);font-weight:700;font-size:14px;line-height:1.4}
+svg.ic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+svg.ic.s{width:16px;height:16px}
+.card{background:var(--surface);border-radius:var(--r-card);padding:var(--s5);display:flex;flex-direction:column;gap:var(--s3)}
+.card.tap{cursor:pointer;text-align:left;width:100%;transition:transform var(--t)}
+.card.tap:active{transform:scale(.99)}
+.divider{height:1px;background:var(--border)}
+.chip{display:inline-flex;align-items:center;height:36px;padding:0 var(--s4);border-radius:var(--r-pill);border:1px solid var(--border);background:var(--surface);font-size:14px;font-weight:500;white-space:nowrap;transition:background-color var(--t)}
+.chip{position:relative}.chip::before{content:"";position:absolute;inset:-4px 0}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--text)}
+.chip.sm{height:28px;padding:0 var(--s3);font-size:14px}
+.badge{display:inline-flex;align-items:center;height:28px;padding:0 var(--s3);border-radius:var(--r-pill);background:var(--accent-soft);color:var(--text);font-size:14px;font-weight:500}
+.badge.line{background:transparent;border:1px solid var(--border);color:var(--text-muted)}
+.badge.dark{background:var(--text);color:var(--surface)}
+.badge.err{background:transparent;border:1px solid var(--error);color:var(--error)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);border-radius:var(--r-pill);font-weight:700;font-size:16px;line-height:1.5;transition:opacity var(--t),transform var(--t),background-color var(--t);white-space:nowrap}
+.btn.primary{background:var(--accent);color:var(--text);height:52px;padding:0 var(--s5)}
+.btn.secondary{background:var(--text);color:var(--surface);height:44px;padding:0 20px;font-size:16px}
+.btn.outline{border:1.5px solid var(--text);color:var(--text);height:44px;padding:0 20px}
+.dark .btn.outline{border-color:var(--surface);color:var(--surface)}
+.btn.block{width:100%}
+.btn:hover{opacity:.92}.btn:active{transform:scale(.98)}
+.btn[disabled]{opacity:.4;cursor:not-allowed;transform:none}
+.btn svg{width:20px;height:20px}
+.row{display:flex;align-items:center;gap:var(--s3)}
+.between{justify-content:space-between}
+.thumb{width:72px;height:56px;flex:0 0 72px}
+.thumb svg{width:100%;height:100%}
+.strip{display:flex;gap:var(--s2);overflow-x:auto;padding:0 var(--s5);scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.strip.wrap{flex-wrap:wrap;overflow:visible}
+.strip.fit{overflow:visible;gap:var(--s1)}.strip.fit .day{flex:1 1 0;min-width:0}
+.day{flex:0 0 44px;height:64px;border-radius:var(--r-field);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s1);border:1px solid transparent;transition:background-color var(--t)}
+.day .w{font-size:12px;font-weight:500;color:var(--text-muted)}
+.day .d{font-family:var(--font-num);font-weight:700;font-size:16px}
+.day[aria-pressed="true"]{background:var(--text);color:var(--surface)}
+.day[aria-pressed="true"] .w{color:var(--text-on-dark-muted)}
+.day.today .d::after{content:"";display:block;width:4px;height:4px;border-radius:50%;background:currentColor;margin:4px auto 0}
+.day[aria-pressed="true"].today .d::after{background:var(--surface)}
+.datehead{font-size:14px;font-weight:700;color:var(--text-muted);padding:var(--s5) var(--s5) var(--s2)}
+.sticky-cta{position:sticky;bottom:0;margin-top:auto;background:linear-gradient(to top,var(--bg) 70%,rgba(242,244,245,0));padding:var(--s3) var(--s5) var(--s5)}
+.dark .sticky-cta{background:linear-gradient(to top,var(--text) 70%,rgba(30,58,76,0))}
+.footer-space{height:var(--s6)}
+.empty{background:var(--surface);border-radius:var(--r-card);padding:var(--s6) var(--s5);display:flex;flex-direction:column;gap:var(--s3);align-items:flex-start}
+.route-track{display:flex;align-items:center;gap:0}
+.route-track .dot{width:12px;height:12px;border-radius:50%;background:currentColor}
+.route-track .dot.end{width:18px;height:18px}
+.route-track .line{flex:1;height:2px;background:currentColor}
+.route-track.accent .dot,.route-track.accent .line{background:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:var(--s3) var(--s4)}
+.legend span{display:inline-flex;align-items:center;gap:var(--s2);font-size:14px;font-weight:500}
+.legend i{display:inline-block;width:24px;height:4px;border-radius:2px;background:var(--text)}
+.legend i.acc{background:var(--accent)}
+.legend i.dash{background:repeating-linear-gradient(90deg,var(--border) 0 4px,transparent 4px 8px);height:2px}
+.field{display:flex;flex-direction:column;gap:var(--s2)}
+.field label{font-size:14px;font-weight:500}
+.field .box{height:56px;border-radius:var(--r-field);background:var(--surface);border:1px solid var(--text-muted);display:flex;align-items:center;padding:0 var(--s4) 0 20px;gap:var(--s3);font-size:16px}
+.field .box:focus-within{border:2px solid var(--text)}
+.field select,.field input{flex:1;border:0;background:transparent;font:inherit;color:var(--text);min-width:0;height:100%;outline:none}
+.field .box.err{border:2px solid var(--error)}
+.field .msg{display:flex;align-items:center;gap:var(--s2);font-size:14px;color:var(--error)}
+.seg{display:flex;gap:var(--s2);flex-wrap:wrap}
+.opt{border:1px solid transparent;background:var(--surface);border-radius:var(--r-card);padding:var(--s4);text-align:left;width:100%;display:flex;gap:var(--s3);align-items:center;transition:background-color var(--t)}
+.opt[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--text)}
+.steps{display:flex;gap:var(--s1)}
+.steps i{flex:1;height:4px;border-radius:2px;background:var(--border)}
+.steps i.on{background:var(--text)}
+.check{width:22px;height:22px;border-radius:var(--r-check);border:1.5px solid var(--text-muted);display:inline-flex;align-items:center;justify-content:center;flex:0 0 22px;background:var(--surface)}
+.check.on{background:var(--text);border-color:var(--text);color:var(--surface)}
+.linkrow{display:inline-flex;align-items:center;gap:var(--s2);min-height:44px;font-size:14px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.toggle{width:44px;height:26px;border-radius:var(--r-pill);background:var(--text-muted);position:relative;transition:background-color var(--t);flex:0 0 44px}
+.toggle::before{content:"";position:absolute;inset:-9px 0}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--surface);transition:transform var(--t)}
+.toggle[aria-checked="true"]{background:var(--text)}
+.toggle[aria-checked="true"]::after{transform:translateX(18px)}
+.map{width:100%;aspect-ratio:600/330;border-radius:var(--r-media);overflow:hidden;background:var(--bg);position:relative;border:1px solid var(--border)}
+.map svg{display:block;width:100%;height:100%}
+.dark .map{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14)}
+.map svg{width:100%;height:100%;display:block}
+.map.full{border-radius:0;aspect-ratio:auto;height:300px}
+.list-row{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) 0;border-bottom:1px solid var(--border);width:100%;text-align:left}
+.list-row:last-child{border-bottom:0}
+.progress{height:4px;border-radius:2px;background:var(--border);overflow:hidden}
+.progress i{display:block;height:100%;background:var(--text);width:0;transition:width 600ms ease-out}
+.dark .progress{background:rgba(255,255,255,.18)}
+.dark .progress i{background:var(--surface)}
+.sheet-bg{position:absolute;inset:0;background:rgba(30,58,76,.4);z-index:10;display:flex;align-items:flex-end}
+.sheet{width:100%;background:var(--surface);border-radius:var(--r-card) var(--r-card) 0 0;padding:var(--s3) var(--s5) var(--s6);display:flex;flex-direction:column;gap:var(--s4);max-height:88%;overflow-y:auto}
+.sheet .grab{width:40px;height:4px;border-radius:2px;background:var(--border);margin:0 auto}
+.sheet.full{max-height:100%;height:100%;border-radius:0;padding-top:var(--s5)}
+.okicon{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--surface);display:inline-flex;align-items:center;justify-content:center}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.demo-strip{margin:0 var(--s5);border:1px dashed var(--border);border-radius:var(--r-field);padding:var(--s3) var(--s4);display:flex;flex-direction:column;gap:var(--s2);font-size:14px;color:var(--text-muted)}
+.dark .demo-strip{border-color:rgba(255,255,255,.3);color:var(--text-on-dark-muted)}
+.demo-strip button{text-decoration:underline;font-size:14px;color:inherit;text-align:left;min-height:44px}
+.status-pill{display:inline-flex;align-items:center;gap:var(--s2);height:32px;padding:0 var(--s3);border-radius:var(--r-pill);background:rgba(255,255,255,.12);font-size:14px;font-weight:500}
+.hero-num{font-family:var(--font-num);font-weight:700;font-size:36px;line-height:1;letter-spacing:-0.02em}
+.count-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3)}
+.count-grid .c{background:var(--surface);border-radius:var(--r-media);padding:var(--s4);display:flex;flex-direction:column;gap:var(--s1)}
+.count-grid .c b{font-family:var(--font-num);font-size:36px;font-weight:700;line-height:1.1}
+.fee{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);background:var(--bg);border-radius:var(--r-media);padding:var(--s4)}
+</style>
+</head>
+<body>
+<div class="desk">
+  <div class="phone" id="phone">
+    <div class="statusbar" id="statusbar"><span>9:41</span><span class="sig" aria-hidden="true"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2" width="3" height="10" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg width="26" height="12" viewBox="0 0 26 12"><rect x="0.5" y="0.5" width="22" height="11" rx="3" fill="none" stroke="currentColor"/><rect x="2" y="2" width="19" height="8" rx="2" fill="currentColor"/><rect x="24" y="4" width="2" height="4" rx="1" fill="currentColor"/></svg></span></div>
+    <main id="view" tabindex="-1"></main>
+    <nav class="tabbar" id="tabbar" aria-label="주 메뉴"></nav>
+    <div id="sheet-root"></div>
+    <div id="live" class="sr" aria-live="polite"></div>
+  </div>
+  <aside class="demo" aria-label="프로토타입 안내">
+    <h2>애프터 크루 · 앱 프로토타입 r1</h2>
+    <p>동행자 흐름: 찾기 → 회차 상세 → 신청 → 당일 체크인 → 해산 → 내 동네 지도.<br>길잡이 흐름: 찾기 상단 "회차 열기" → 개설 → 당일 현황 → 출발 → 해산.</p>
+    <p>날짜는 2026-09-29 (화) 기준으로 고정. 데이터는 이 브라우저에만 저장.</p>
+    <button type="button" onclick="resetAll()">처음 상태로 되돌리기</button>
+    <button type="button" onclick="location.hash='#/find'">동행자로 시작 (찾기)</button>
+    <button type="button" onclick="location.hash='#/host/new'">길잡이로 시작 (회차 열기)</button>
+  </aside>
+</div>
+
+<script>
+/* ===================== 데이터 ===================== */
+const TODAY = new Date(2026,8,29,11,0,0); // 2026-09-29 (화) 프로토타입 고정
+const WD = ['일','월','화','수','목','금','토'];
+const ACT = { walk:'산책', jog:'조깅', hike:'하이킹', bike:'라이트 바이크' };
+const LEVEL = { easy:'쉬움', mid:'보통' };
+const MY_GU = '마포구';
+
+// 코스 라이브러리 (길잡이가 만든 코스). pts는 지도 좌표(600×330), thumb는 카드 썸네일 폴리라인
+const COURSES = [
+  { id:'c1', name:'망원 한강공원 한 바퀴', gu:'마포구', act:'walk', km:3.2, min:40, level:'easy', start:'망원나들목', end:'망원한강공원 주차장 앞', pts:'60,236 150,222 240,282 330,268', by:'other' },
+  { id:'c2', name:'경의선숲길 왕복', gu:'마포구', act:'jog', km:4.0, min:35, level:'easy', start:'홍대입구역 3번 출구', end:'연남동 세모길 끝', pts:'90,205 200,205 200,140', by:'other' },
+  { id:'c3', name:'한강 평지 라이드', gu:'마포구', act:'bike', km:12, min:60, level:'easy', start:'망원나들목 따릉이 대여소', end:'여의도 물빛광장 대여소', pts:'372,258 430,245 500,228 560,236', by:'other' },
+  { id:'c4', name:'안산 자락길', gu:'서대문구', act:'hike', km:5.0, min:180, level:'mid', start:'독립문역 5번 출구', end:'서대문구청 앞', pts:'330,60 337,132 460,131', by:'other' },
+  { id:'c5', name:'홍제천 산책길', gu:'서대문구', act:'walk', km:4.5, min:55, level:'easy', start:'홍제역 4번 출구', end:'홍제천 인공폭포', pts:'90,140 200,138 200,60', by:'other' },
+  { id:'c6', name:'노을공원 둘레', gu:'마포구', act:'walk', km:5.5, min:70, level:'mid', start:'월드컵경기장 서문', end:'노을공원 입구', pts:'460,60 470,140 540,205', by:'other' },
+  { id:'c7', name:'효창공원 저녁 조깅', gu:'용산구', act:'jog', km:3.0, min:25, level:'easy', start:'효창공원앞역 1번 출구', end:'효창공원 정문', pts:'240,282 300,300 380,290', by:'other' },
+];
+// 회차 (일회성). d = 날짜 오프셋(오늘=0), t 출발, e 해산
+const SESSIONS_SEED = [
+  { id:'s1', course:'c1', d:0, t:'19:30', e:'20:10', cap:8, applied:5, verified:true, cancelRule:'출발 3시간 전 강수확률 60% 이상이면 취소, 전원 알림' },
+  { id:'s2', course:'c2', d:1, t:'19:00', e:'19:45', cap:6, applied:3, verified:true, cancelRule:'출발 3시간 전 강수확률 60% 이상이면 취소, 전원 알림' },
+  { id:'s3', course:'c3', d:3, t:'19:30', e:'20:30', cap:8, applied:6, verified:true, cancelRule:'출발 3시간 전 강수확률 50% 이상 또는 강풍이면 취소, 전원 알림' },
+  { id:'s4', course:'c4', d:4, t:'09:00', e:'12:00', cap:10, applied:4, verified:true, cancelRule:'출발 전날 20시 기준 강수확률 60% 이상이면 취소, 전원 알림' },
+  { id:'s5', course:'c6', d:5, t:'08:00', e:'09:10', cap:8, applied:2, verified:true, cancelRule:'출발 3시간 전 강수확률 60% 이상이면 취소, 전원 알림' },
+  { id:'s6', course:'c2', d:6, t:'20:00', e:'20:45', cap:6, applied:1, verified:true, cancelRule:'출발 3시간 전 강수확률 60% 이상이면 취소, 전원 알림' },
+  // 근처 동네 (서대문구·용산구). 마포구 목록에는 안 뜨고, 빈 날 추천에만
+  { id:'n1', course:'c5', d:2, t:'19:30', e:'20:25', cap:8, applied:3, verified:true, cancelRule:'출발 3시간 전 강수확률 60% 이상이면 취소, 전원 알림' },
+  { id:'n2', course:'c7', d:2, t:'20:00', e:'20:25', cap:6, applied:2, verified:true, cancelRule:'출발 3시간 전 강수확률 60% 이상이면 취소, 전원 알림' },
+  { id:'n3', course:'c4', d:2, t:'18:30', e:'21:30', cap:10, applied:5, verified:true, cancelRule:'출발 3시간 전 강수확률 60% 이상이면 취소, 전원 알림' },
+];
+
+/* ===================== 상태 ===================== */
+const DEFAULT_STATE = { applied:[], canceled:[], checkedIn:[], done:['c2','c6'], justDone:null, hosted:[], verified:false, privacy:'me', hostStage:{}, hostCounts:{}, cancelledSessions:[], created:[], courses:[] };
+let S = load();
+function load(){ try{ const j=localStorage.getItem('aftercrew-proto'); if(j) return Object.assign(structuredClone(DEFAULT_STATE), JSON.parse(j)); }catch(e){} return structuredClone(DEFAULT_STATE); }
+function save(){ try{ localStorage.setItem('aftercrew-proto', JSON.stringify(S)); }catch(e){} }
+function resetAll(){ S = structuredClone(DEFAULT_STATE); save(); location.hash='#/find'; render(); announce('처음 상태로 되돌렸어요'); }
+function allCourses(){ return COURSES.concat(S.courses||[]); }
+function sessions(){ return SESSIONS_SEED.concat(S.created).filter(x=>course(x.course)); }
+function sessionById(id){ return sessions().find(s=>s.id===id); }
+function course(id){ return allCourses().find(c=>c.id===id); }
+
+/* ===================== 헬퍼 ===================== */
+function dateOf(d){ const x=new Date(TODAY); x.setDate(x.getDate()+d); return x; }
+function fmtDay(d){ const x=dateOf(d); return `${x.getMonth()+1}/${x.getDate()} (${WD[x.getDay()]})`; }
+function fmtWhen(s){ return `${fmtDay(s.d)} ${s.t} → ${s.e}`; }
+function esc(t){ return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function announce(t){ const l=document.getElementById('live'); l.textContent=''; setTimeout(()=>l.textContent=t,30); }
+function icon(n,cls=''){ const P={
+  back:'<path d="m15 18-6-6 6-6"/>', fwd:'<path d="m9 18 6-6-6-6"/>', x:'<path d="M18 6 6 18M6 6l12 12"/>', check:'<path d="M20 6 9 17l-5-5"/>',
+  flag:'<path d="M4 22V4a1 1 0 0 1 1-1h11l-2 4 2 4H5"/>', plus:'<path d="M12 5v14M5 12h14"/>', refresh:'<path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><path d="M3 21v-5h5"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>', pin:'<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>', map:'<path d="M14.1 6 8 3 2 6v15l6-3 6.1 3 5.9-3V3z"/><path d="M8 3v15M14 6v15"/>', user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  alert:'<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>', ext:'<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  bike:'<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5V14l-3-3 4-3 2 3h2"/>', walk:'<circle cx="13" cy="4" r="1.5"/><path d="m9 22 2-7-3-2 1-5 4 1 2 3 3 1"/><path d="m13 11 1 4 3 3M9 13l-3 4"/>',
+  shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>', clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>', chevd:'<path d="m6 9 6 6 6-6"/>', cancel:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>'
+ }; return `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[n]||''}</svg>`; }
+function thumbSVG(c, cls=''){ return `<svg viewBox="0 0 72 56" aria-hidden="true" class="${cls}"><polyline points="${scaleThumb(c.pts)}" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${firstPt(scaleThumb(c.pts))[0]}" cy="${firstPt(scaleThumb(c.pts))[1]}" r="3" fill="currentColor"/><circle cx="${lastPt(scaleThumb(c.pts))[0]}" cy="${lastPt(scaleThumb(c.pts))[1]}" r="5" fill="currentColor"/></svg>`; }
+function parsePts(p){ return p.split(' ').map(s=>s.split(',').map(Number)); }
+function scaleThumb(p){ const pts=parsePts(p); const xs=pts.map(a=>a[0]), ys=pts.map(a=>a[1]); const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys); const w=Math.max(maxx-minx,1),h=Math.max(maxy-miny,1); const sc=Math.min(56/w,40/h); return pts.map(([x,y])=>[8+(x-minx)*sc+(56-w*sc)/2,8+(y-miny)*sc+(40-h*sc)/2].map(v=>v.toFixed(1)).join(',')).join(' '); }
+function firstPt(p){ return p.split(' ')[0].split(','); } function lastPt(p){ const a=p.split(' '); return a[a.length-1].split(','); }
+function mapSVG(opts){ // opts: {focus:[courseIds], done:[ids], just:id, dashed:[ids], hideDash}
+  const dk=!!opts.dark; const ink=dk?'var(--surface)':'var(--text)';
+  const base = `<rect width="600" height="330" fill="${dk?'var(--text)':'var(--bg)'}"/><path d="M-10 250 C 120 220, 220 300, 360 262 S 560 220, 610 240" stroke="${dk?'rgba(255,255,255,.10)':'var(--surface)'}" stroke-width="26" stroke-linecap="round" fill="none"/><path d="M90 0 V330 M200 0 V330 M330 0 L345 330 M460 0 V330 M540 0 L525 330 M0 60 H600 M0 140 L600 128 M0 205 H600 M0 20 L240 200" stroke="${dk?'rgba(255,255,255,.14)':'var(--border)'}" stroke-width="2" fill="none"/>`;
+  let paths='';
+  allCourses().forEach(c=>{
+    const pts=parsePts(c.pts); const f=pts[0], l=pts[pts.length-1];
+    if(opts.just===c.id){ paths+=`<polyline points="${c.pts}" fill="none" stroke="var(--accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" pathLength="1" class="draw"/><circle cx="${f[0]}" cy="${f[1]}" r="5" fill="var(--accent)"/><circle cx="${l[0]}" cy="${l[1]}" r="9" fill="var(--accent)"/>`; }
+    else if(opts.done && opts.done.includes(c.id)){ paths+=`<polyline points="${c.pts}" fill="none" stroke="var(--text)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${f[0]}" cy="${f[1]}" r="5" fill="var(--text)"/><circle cx="${l[0]}" cy="${l[1]}" r="8" fill="var(--text)"/>`; }
+    else if(opts.focus && opts.focus.includes(c.id)){ paths+=`<polyline points="${c.pts}" fill="none" stroke="${ink}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${f[0]}" cy="${f[1]}" r="5" fill="${ink}"/><circle cx="${l[0]}" cy="${l[1]}" r="8" fill="${ink}"/>`; }
+    else if(!opts.hideDash){ paths+=`<polyline points="${c.pts}" fill="none" stroke="var(--border)" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 8"/>`; }
+  });
+  let vb='0 0 600 330';
+  if(opts.zoom && opts.focus && opts.focus.length===1){ const c=course(opts.focus[0]); if(c){ const pts=parsePts(c.pts); const xs=pts.map(a=>a[0]), ys=pts.map(a=>a[1]); const pad=48; let w=Math.max(...xs)-Math.min(...xs)+pad*2, h=Math.max(...ys)-Math.min(...ys)+pad*2; if(w/h>600/330) h=w*330/600; else w=h*600/330; w=Math.min(w,600); h=Math.min(h,330); let x=(Math.min(...xs)+Math.max(...xs))/2-w/2, y=(Math.min(...ys)+Math.max(...ys))/2-h/2; x=Math.max(0,Math.min(600-w,x)); y=Math.max(0,Math.min(330-h,y)); vb=`${x.toFixed(0)} ${y.toFixed(0)} ${w.toFixed(0)} ${h.toFixed(0)}`; } }
+  return `<svg viewBox="${vb}" role="img" aria-label="${esc(opts.label||'동네 지도')}">${base}${paths}</svg>`;
+}
+function bikeFee(c){ return { pass:0, hourly: c.min<=60 ? 1000 : 1000 + Math.ceil((c.min-60)/30)*1000 }; } // 예상 요금: 1시간권 1,000원 + 30분당 1,000원 (예시값, 출처 링크로 안내)
+function won(n){ return n===0?'0원':n.toLocaleString('ko-KR')+'원'; }
+function icsFor(sid){ const s=typeof sid==='string'?sessionById(sid):sid; if(!s) return; const c=course(s.course); const d=dateOf(s.d); const p=n=>String(n).padStart(2,'0'); const ymd=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}`; const t1=s.t.replace(':',''), t2=s.e.replace(':','');
+  const body=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//After Crew//prototype//KO','BEGIN:VEVENT',`UID:${s.id}@aftercrew.proto`,`DTSTART;TZID=Asia/Seoul:${ymd}T${t1}00`,`DTEND;TZID=Asia/Seoul:${ymd}T${t2}00`,`SUMMARY:애프터 크루 · ${c.name}`,`LOCATION:${c.start}`,`DESCRIPTION:${ACT[c.act]} ${c.km}km · 출발 ${c.start} · 해산 ${c.end} · 본인인증 길잡이`,'BEGIN:VALARM','TRIGGER:-PT1H','ACTION:DISPLAY','DESCRIPTION:1시간 뒤 출발','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const url=URL.createObjectURL(new Blob([body],{type:'text/calendar'})); const a=document.createElement('a'); a.href=url; a.download=`after-crew-${s.id}.ics`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),2000); announce('캘린더 파일을 내려받았어요. 기기 캘린더에서 열면 일정이 추가돼요'); }
+function isApplied(id){ return S.applied.includes(id); }
+function appliedCount(s){ const h=S.hostCounts[s.id]; return (h?h.applied:s.applied) + (isApplied(s.id)?1:0); }
+function isMine(s){ return S.hosted.includes(s.id); }
+function myTodaySession(){ return sessions().find(s=>s.d===0 && (isApplied(s.id)||isMine(s)) && !S.cancelledSessions.includes(s.id)); }
+function setTopbarDark(dark){ document.getElementById('statusbar').classList.toggle('dark',!!dark); }
+
+/* ===================== 라우터 ===================== */
+let afterRender=null;
+window.addEventListener('hashchange', render);
+window.addEventListener('keydown', e=>{ if(e.key==='Escape') closeSheet(); });
+function nav(h){ location.hash=h; }
+function back(){ if(history.length>1) history.back(); else nav('#/find'); }
+function render(){
+  const h=location.hash||'#/find'; const parts=h.slice(2).split('/'); const v=document.getElementById('view'); closeSheet(); setTopbarDark(false);
+  let html='', tab='find';
+  if(parts[0]==='find'){ html=viewFind(parts[1]); tab='find'; }
+  else if(parts[0]==='session'){ html=viewSession(parts[1]); tab='find'; }
+  else if(parts[0]==='today'){ html=viewToday(parts[1]); tab='find'; }
+  else if(parts[0]==='map'){ html=viewMap(parts[1]); tab='map'; }
+  else if(parts[0]==='me'){ html=viewMe(); tab='me'; }
+  else if(parts[0]==='host'){ if(parts[1]==='new'){ html=viewHostNew(parts[2]||'0'); tab='find'; } else if(parts[1]==='today'){ html=viewHostToday(parts[2]); tab='find'; } else { html=notFound(); } }
+  else { html=notFound(); }
+  v.innerHTML=html; v.scrollTop=0; renderTabs(tab); const s=v.querySelector('.screen'); setTopbarDark(s&&s.classList.contains('dark'));
+  if(afterRender){ const f=afterRender; afterRender=null; f(); }
+}
+function renderTabs(cur){ const t=[['find','찾기','search','#/find'],['map','지도','map','#/map'],['me','나','user','#/me']];
+  document.getElementById('tabbar').innerHTML=t.map(([k,l,i,h])=>`<button type="button" ${cur===k?'aria-current="page"':''} onclick="nav('${h}')">${icon(i)}<span>${l}</span></button>`).join(''); }
+
+/* ===================== 시트 ===================== */
+let lastFocus=null;
+function openSheet(html,{full=false,label='시트'}={}){ lastFocus=document.activeElement; const r=document.getElementById('sheet-root'); r.innerHTML=`<div class="sheet-bg" onclick="if(event.target===this)closeSheet()"><div class="sheet ${full?'full':''}" role="dialog" aria-modal="true" aria-label="${esc(label)}" tabindex="-1"><div class="grab" aria-hidden="true"></div>${html}</div></div>`; const d=r.querySelector('.sheet'); d.focus({preventScroll:true}); d.addEventListener('keydown',e=>{ if(e.key!=='Tab') return; const f=[...d.querySelectorAll('button,input,select,a,[tabindex="0"]')].filter(x=>!x.disabled); if(!f.length) return; const first=f[0], last=f[f.length-1]; if(e.shiftKey&&(document.activeElement===first||document.activeElement===d)){ e.preventDefault(); last.focus(); } else if(!e.shiftKey&&document.activeElement===last){ e.preventDefault(); first.focus(); } }); }
+function closeSheet(){ const r=document.getElementById('sheet-root'); if(r.innerHTML){ r.innerHTML=''; if(lastFocus&&lastFocus.focus) lastFocus.focus(); } }
+
+/* ===================== A · 모임 찾기 ===================== */
+let findAct = 'all';
+function viewFind(dayParam){
+  const day = dayParam===undefined||dayParam==='' ? null : Number(dayParam);
+  const mine = myTodaySession();
+  const list = sessions().filter(s=>course(s.course).gu===MY_GU && !S.cancelledSessions.includes(s.id) && (day===null? s.d>=0&&s.d<=6 : s.d===day) && (findAct==='all'||course(s.course).act===findAct)).sort((a,b)=>a.d-b.d||a.t.localeCompare(b.t));
+  const days = Array.from({length:7},(_,i)=>i);
+  const strip = `<div class="strip" role="group" aria-label="날짜 선택">${days.map(i=>{const x=dateOf(i);return `<button type="button" class="day ${i===0?'today':''}" aria-pressed="${day===i}" aria-label="${fmtDay(i)}" onclick="nav('#/find/${day===i?'':i}')"><span class="w">${WD[x.getDay()]}</span><span class="d">${x.getDate()}</span></button>`;}).join('')}</div>`;
+  const chips = `<div class="strip wrap mt12" role="group" aria-label="활동">${[['all','전체'],['walk','산책'],['jog','조깅'],['hike','하이킹'],['bike','라이트 바이크']].map(([k,l])=>`<button type="button" class="chip" aria-pressed="${findAct===k}" onclick="findAct='${k}';render()">${l}</button>`).join('')}</div>`;
+  let body='';
+  if(mine){ const c=course(mine.course); const stg=S.hostStage[mine.id]; const st = stg==='ended'?'완주':(stg==='going'||S.checkedIn.includes(mine.id))?'진행 중':(isMine(mine)?'내가 여는 회차':'신청됨');
+    body+=`<div class="pad mt16"><button type="button" class="card tap" style="background:var(--text);color:var(--surface)" onclick="nav('${isMine(mine)?'#/host/today/'+mine.id:'#/today/'+mine.id}')"><div class="row between"><span class="status-pill">${icon('clock','s')} ${fmtWhen(mine)}</span><span class="badge">${st}</span></div><div class="h3">${esc(c.name)}</div><div class="row between"><span class="cap muted">${ACT[c.act]} · ${c.km}km · ${c.start}</span>${icon('fwd')}</div></button></div>`; }
+  if(list.length===0){
+    const near = sessions().filter(s=>course(s.course).gu!==MY_GU && !S.cancelledSessions.includes(s.id) && (day===null? s.d>=0&&s.d<=6 : s.d===day)).slice(0,3);
+    body+=`<div class="pad mt24"><div class="empty"><div class="h3">${day===null?fmtDay(0)+' ~ '+fmtDay(6)+'에 열린 모임이 없어요':fmtDay(day)+'에 열린 모임이 없어요'}</div><p class="body muted">${MY_GU} 기준이에요. 새로고침하거나 근처 동네 모임을 볼 수 있어요.</p><button type="button" class="btn outline" onclick="render();announce('새로고침했어요')">${icon('refresh')} 새로고침</button></div></div>`;
+    if(near.length){ body+=`<div class="datehead">근처 동네 모임</div><div class="pad stack g12">${near.map(sessionCard).join('')}</div>`; }
+    body+=`<div class="pad mt24"><button type="button" class="btn secondary block" onclick="nav('#/host/new')">${icon('plus')} 직접 회차 열기</button></div>`;
+  } else {
+    let lastD=null; list.forEach(s=>{ if(s.d!==lastD){ body+=`<div class="datehead">${fmtDay(s.d)}${s.d===0?' · 오늘':''}</div>`; lastD=s.d; body+=`<div class="pad stack g12">`; } body+=sessionCard(s); if(list[list.indexOf(s)+1]?.d!==s.d) body+=`</div>`; });
+  }
+  return `<div class="screen"><header class="topbar"><h1 class="title left">${MY_GU} 모임</h1><button type="button" class="textbtn" onclick="nav('#/host/new')">${icon('plus','s')} 회차 열기</button></header>
+  <div class="mt8">${strip}</div>${chips}${body}<div class="footer-space"></div></div>`;
+}
+function sessionCard(s){ const c=course(s.course); const full = appliedCount(s)>=s.cap; const status = isApplied(s.id)?'<span class="badge">신청됨</span>':(isMine(s)?'<span class="badge dark">내가 여는 회차</span>':(full?'<span class="badge line">마감</span>':''));
+  return `<button type="button" class="card tap" onclick="nav('#/session/${s.id}')" aria-label="${esc(c.name)}, ${fmtWhen(s)}"><div class="row between"><span class="row g8"><span class="chip sm">${ACT[c.act]}</span><span class="chip sm">${LEVEL[c.level]}</span>${c.gu!==MY_GU?`<span class="chip sm">${c.gu}</span>`:''}</span>${status}</div>
+  <div class="row between" style="align-items:flex-start"><div class="stack" style="gap:var(--s1);flex:1;min-width:0"><div class="time">${fmtWhen(s)}</div><div class="h3">${esc(c.name)}</div><div class="cap muted">${c.km}km · ${c.min}분 · 정원 ${s.cap}명 중 ${appliedCount(s)}명 신청</div></div><div class="thumb muted">${thumbSVG(c)}</div></div></button>`; }
+
+/* ===================== B · 회차 상세 ===================== */
+function viewSession(id){ const s=sessionById(id); if(!s) return notFound(); const c=course(s.course); const applied=isApplied(id); const cancelled=S.cancelledSessions.includes(id); const mine=isMine(s); const full=appliedCount(s)>=s.cap && !applied;
+  const fee = c.act==='bike' ? bikeFee(c) : null;
+  const cta = cancelled ? `<button type="button" class="btn secondary block" onclick="nav('#/find')">다른 회차 찾기</button>`
+    : mine ? (s.d===0 ? `<button type="button" class="btn primary block" onclick="nav('#/host/today/${id}')">당일 현황 보기</button>` : `<div class="stack g12"><p class="cap muted" style="text-align:center">${fmtDay(s.d)} ${s.t}에 출발해요. 당일 화면은 그날 열려요.</p><div class="row g12"><button type="button" class="btn secondary" style="flex:1" onclick="icsFor('${id}')">${icon('cal')} 내 캘린더에 추가</button><button type="button" class="btn outline" style="flex:1" onclick="hostCancelSheet('${id}')">회차 취소</button></div></div>`)
+    : applied ? `<div class="stack g12"><div class="row g12"><button type="button" class="btn secondary" style="flex:1" onclick="icsFor('${id}')">${icon('cal')} 내 캘린더에 추가</button>${c.act==='bike'?`<button type="button" class="btn secondary" style="flex:1" onclick="announce('따릉이 앱으로 이동해요 (프로토타입)')">${icon('ext')} 따릉이로 이동</button>`:''}</div><button type="button" class="btn outline block" onclick="cancelSheet('${id}')">신청 취소</button></div>`
+    : full ? `<button type="button" class="btn primary block" disabled>정원이 찼어요</button>`
+    : `<button type="button" class="btn primary block" onclick="applySheet('${id}')">신청하기</button>`;
+  return `<div class="screen"><header class="topbar"><button type="button" class="iconbtn" aria-label="뒤로" onclick="back()">${icon('back')}</button><h1 class="title">회차</h1><button type="button" class="iconbtn" aria-label="신고" onclick="reportSheet('${id}')">${icon('flag')}</button></header>
+  <div class="pad stack g16">
+    <div class="row g8"><span class="chip sm">${ACT[c.act]}</span><span class="chip sm">${LEVEL[c.level]}</span><span class="chip sm">${c.gu}</span>${cancelled?'<span class="badge err">취소됨</span>':applied?'<span class="badge">신청됨</span>':mine?'<span class="badge dark">내가 여는 회차</span>':''}</div>
+    <div><div class="time" style="font-size:16px">${fmtWhen(s)}</div><h2 class="h1 mt8">${esc(c.name)}</h2><p class="cap muted mt8">${icon('shield','s')} 본인인증 길잡이 · 정원 ${s.cap}명 중 ${appliedCount(s)}명 신청</p></div>
+    <div class="card" style="gap:var(--s4)"><div class="num-l">${c.km}km</div><div class="route-track"><span class="dot"></span><span class="line"></span><span class="dot end"></span></div><div class="row between g16" style="align-items:flex-start"><div style="flex:1"><div class="time">${s.t}</div><div class="cap muted">출발 · ${esc(c.start)}</div></div><div style="flex:1;text-align:right"><div class="time">${s.e}</div><div class="cap muted">끝나면 해산 · ${esc(c.end)}</div></div></div><div class="map">${mapSVG({focus:[c.id],hideDash:true,zoom:true,label:c.name+' 코스 지도'})}</div><div class="cap muted">약 ${c.min}분 · 가장 느린 사람 기준 페이스</div></div>
+    ${fee?`<div class="card"><div class="h3">따릉이 예상 요금</div><div class="fee"><div><div class="cap">이용권이 없으면</div><div class="cap muted">1시간권 기준, ${c.min}분</div></div><div class="num" style="font-weight:700;font-size:18px">${won(fee.hourly)}</div></div><div class="fee"><div><div class="cap">정기권·이용권이 있으면</div><div class="cap muted">따릉이에서 그대로 사용</div></div><div class="num" style="font-weight:700;font-size:18px">${won(fee.pass)}</div></div><p class="cap muted">예상 금액이에요. 대여·결제는 따릉이 앱에서 해요.</p><a href="#" class="linkrow" onclick="event.preventDefault();announce('따릉이 요금 안내 페이지로 이동해요 (프로토타입)')">따릉이 요금 안내 보기 ${icon('ext','s')}</a></div>`:''}
+    <div class="card"><div class="h3">이 회차의 약속</div><ul class="stack g8 body"><li>가입도 참가비도 없어요</li><li>끝나면 ${s.e}에 해산해요</li><li>이동 기록은 체크인부터 해산까지만, 기본은 나만 보기</li><li>취소 기준: ${esc(s.cancelRule)}</li><li>내 사정으로 못 가면 출발 전까지 언제든 취소할 수 있어요</li></ul></div>
+    <div class="footer-space"></div>
+  </div>
+  <div class="sticky-cta">${cta}</div></div>`;
+}
+function applySheet(id){ const s=sessionById(id); const c=course(s.course); openSheet(`<div class="h2">이 회차에 신청할게요</div><div class="stack g12 body"><div class="row g12">${icon('clock')}<div><div class="time">${fmtWhen(s)}</div><div class="cap muted">${esc(c.name)}</div></div></div><div class="row g12">${icon('pin')}<div><div>출발 ${esc(c.start)}</div><div class="cap muted">해산 ${esc(c.end)}</div></div></div><div class="row g12" style="align-items:flex-start">${icon('shield')}<div>이동 기록은 체크인부터 해산까지만 남고, 기본은 나만 봐요.</div></div></div><div class="stack g12 mt8"><button type="button" class="btn secondary block" onclick="doApply('${id}')">신청하기</button><button type="button" class="btn outline block" onclick="closeSheet()">닫기</button></div>`,{label:'신청 확인'}); }
+function doApply(id){ if(!isApplied(id)){ S.applied.push(id); S.canceled=S.canceled.filter(x=>x!==id); save(); } closeSheet(); render(); announce('신청됐어요. 캘린더에 추가할 수 있어요'); }
+function cancelSheet(id){ const s=sessionById(id); const c=course(s.course); openSheet(`<div class="h2">신청을 취소할까요?</div><p class="body">"${esc(c.name)}" ${fmtWhen(s)} 회차예요. 자리는 바로 다른 사람에게 열려요. 기기 캘린더에 넣었다면 거기서도 지워 주세요.</p><div class="stack g12"><button type="button" class="btn secondary block" onclick="doCancel('${id}')">신청 취소</button><button type="button" class="btn outline block" onclick="closeSheet()">그대로 둘게요</button></div>`,{label:'신청 취소 확인'}); }
+function doCancel(id){ S.applied=S.applied.filter(x=>x!==id); S.checkedIn=S.checkedIn.filter(x=>x!==id); delete S.hostStage[id]; if(!S.canceled.includes(id)) S.canceled.push(id); save(); closeSheet(); nav('#/find'); announce('신청을 취소했어요'); }
+function reportSheet(id){ openSheet(`<div class="h2">신고</div><p class="cap muted">사유를 고르면 바로 접수돼요. 접수 뒤 운영팀이 확인해서 조치해요.</p><div class="stack g8">${['개인 연락을 강요해요','약속한 코스·시간과 달라요','위험한 행동을 해요','불쾌한 언행이 있어요','기타'].map(r=>`<button type="button" class="opt" onclick="doReport('${id}','${r}')"><span>${r}</span></button>`).join('')}</div><button type="button" class="btn outline block" onclick="closeSheet()">닫기</button>`,{label:'신고'}); }
+function doReport(id,r){ openSheet(`<div class="okicon">${icon('check')}</div><div class="h2">신고가 접수됐어요</div><p class="body">"${esc(r)}" 사유로 접수했어요. 회차 진행 중이면 길잡이에게도 바로 알려요. 필요하면 지금 자리를 떠나도 돼요.</p><button type="button" class="btn secondary block" onclick="closeSheet()">확인</button>`,{label:'신고 접수'}); announce('신고가 접수됐어요'); }
+
+/* ===================== C · 당일 (동행자) ===================== */
+function viewToday(id){ const s=sessionById(id); if(!s) return notFound(); const c=course(s.course); const stage = S.hostStage[id]||'before'; // before | going | ended
+  const checked = S.checkedIn.includes(id); const done = S.done.includes(c.id) && stage==='ended';
+  if(stage==='ended' && checked){ return `<div class="screen dark on-dark"><header class="topbar"><button type="button" class="iconbtn" aria-label="뒤로" onclick="nav('#/find')">${icon('back')}</button><h1 class="title">완주</h1><span class="iconbtn" aria-hidden="true"></span></header>
+    <div class="pad stack g24" style="flex:1;justify-content:center"><div class="okicon" style="background:var(--surface);color:var(--text)">${icon('check')}</div><div><div class="hero-num">${c.km}km</div><h2 class="h2 mt8">끝까지 같이 왔어요</h2><p class="body muted mt8">${esc(c.name)} · ${fmtWhen(s)}</p></div><div class="map"><span class="badge" style="position:absolute;top:12px;left:12px">방금 완주</span>${mapSVG({focus:[c.id],hideDash:true,zoom:true,dark:true,label:c.name+' 코스 지도'})}</div><p class="body muted">이 코스가 내 동네 지도에 채워졌어요. 기록은 나만 봐요.</p></div>
+    <div class="sticky-cta"><button type="button" class="btn primary block" onclick="nav('#/map')">내 동네 지도 보기</button></div></div>`; }
+  if(checked && stage!=='ended'){ return `<div class="screen dark on-dark"><header class="topbar"><button type="button" class="iconbtn" aria-label="뒤로" onclick="nav('#/find')">${icon('back')}</button><h1 class="title">진행 중</h1><button type="button" class="iconbtn" aria-label="신고" onclick="reportSheet('${id}')">${icon('flag')}</button></header>
+    <div class="pad stack g24" style="flex:1"><div><span class="status-pill">${icon('clock','s')} ${s.e}에 해산</span><h2 class="h1 mt16">${esc(c.name)}</h2><p class="body muted mt8">가장 느린 사람 기준으로 같이 가요. 폰은 넣어두셔도 돼요.</p></div>
+    <div class="card" style="background:rgba(255,255,255,.08);color:var(--surface)"><div class="row between"><span class="cap muted">출발 ${s.t}</span><span class="cap muted">해산 ${s.e}</span></div><div class="progress"><i style="width:42%"></i></div><div class="cap muted">이동 기록 중 · 해산하면 자동으로 멈춰요</div></div>
+    <div class="map">${mapSVG({focus:[c.id],hideDash:true,zoom:true,dark:true,label:c.name+' 코스 지도'})}</div>
+    <div class="demo-strip"><span>프로토타입 데모</span><button type="button" onclick="endSession('${id}')">길잡이가 해산했어요 → 완주 화면 보기</button></div></div></div>`; }
+  return `<div class="screen"><header class="topbar"><button type="button" class="iconbtn" aria-label="뒤로" onclick="nav('#/find')">${icon('back')}</button><h1 class="title">${fmtDay(0)} 회차</h1><button type="button" class="iconbtn" aria-label="신고" onclick="reportSheet('${id}')">${icon('flag')}</button></header>
+    <div class="pad stack g16"><div><div class="time" style="font-size:16px">${fmtWhen(s)}</div><h2 class="h1 mt8">${esc(c.name)}</h2></div>
+    <div class="card"><div class="row g12">${icon('pin')}<div><div class="body">출발 ${esc(c.start)}</div><div class="cap muted">체크인 마감 ${s.t} · 그 뒤엔 출발해요</div></div></div><div class="divider"></div><div class="row g12">${icon('user')}<div><div class="body">누가 길잡이인지는 그 자리에서 물어보면 돼요</div><div class="cap muted">"애프터 크루세요?"</div></div></div>${c.act==='bike'?`<div class="divider"></div><div class="row g12">${icon('bike')}<div><div class="body">따릉이는 출발 대여소에서</div><div class="cap muted">${esc(c.start)}</div></div></div>`:''}</div>
+    <div class="map">${mapSVG({focus:[c.id],hideDash:true,zoom:true,label:c.name+' 코스 지도'})}</div>
+    <p class="cap muted">체크인하면 이동 기록이 시작돼요. 위치 권한이 없어도 체크인은 되고, 완주는 체크인과 해산으로 정해져요.</p></div>
+    <div class="sticky-cta"><div class="stack g12">${c.act==='bike'?`<button type="button" class="btn secondary block" onclick="announce('따릉이 앱으로 이동해요 (프로토타입)')">${icon('ext')} 따릉이로 이동</button>`:''}<button type="button" class="btn primary block" onclick="checkIn('${id}')">체크인</button></div></div></div>`;
+}
+function checkIn(id){ if(!S.checkedIn.includes(id)) S.checkedIn.push(id); S.hostStage[id]='going'; save(); render(); announce('체크인됐어요. 이동 기록을 시작해요'); }
+function endSession(id){ const s=sessionById(id); S.hostStage[id]='ended'; if(!S.done.includes(s.course)) S.done.push(s.course); S.justDone=s.course; save(); render(); announce('해산했어요. 완주예요'); }
+
+/* ===================== C' · 당일 (길잡이) ===================== */
+function viewHostToday(id){ const s=sessionById(id); if(!s) return notFound(); const c=course(s.course); const stage=S.hostStage[id]||'before'; const cnt=S.hostCounts[id]||{applied:s.applied,checked:0};
+  const head=`<header class="topbar"><button type="button" class="iconbtn" aria-label="뒤로" onclick="nav('#/find')">${icon('back')}</button><h1 class="title">내가 여는 회차</h1><button type="button" class="iconbtn" aria-label="신고" onclick="reportSheet('${id}')">${icon('flag')}</button></header>`;
+  if(s.d!==0 && stage==='before'){ return `<div class="screen">${head}<div class="pad stack g16 mt24"><div class="time">${fmtWhen(s)}</div><h2 class="h1">${esc(c.name)}</h2><p class="body muted">당일 화면은 ${fmtDay(s.d)}에 열려요. 그때 체크인 현황을 보고 출발해요.</p><div class="card" style="gap:var(--s2)"><div class="h3">지금 할 수 있는 것</div><p class="body">내 사정이나 악천후면 출발 전까지 언제든 회차를 취소할 수 있어요. 동행자에게 바로 알림이 가요.</p></div></div><div class="sticky-cta"><div class="stack g12"><button type="button" class="btn secondary block" onclick="nav('#/session/${id}')">회차 보기</button><button type="button" class="btn outline block" onclick="hostCancelSheet('${id}')">회차 취소</button></div></div></div>`; }
+  if(stage==='ended'){ return `<div class="screen dark on-dark">${head}<div class="pad stack g24" style="flex:1;justify-content:center"><div class="okicon" style="background:var(--surface);color:var(--text)">${icon('check')}</div><div><div class="hero-num">${cnt.checked}명</div><h2 class="h2 mt8">전원 완주로 마쳤어요</h2><p class="body muted mt8">${esc(c.name)} · ${fmtWhen(s)}</p></div><p class="body muted">체크인한 ${cnt.checked}명 모두 완주 처리됐고, 이 코스는 각자 지도에 채워져요. 내 지도에도요.</p></div><div class="sticky-cta"><button type="button" class="btn primary block" onclick="nav('#/map')">내 동네 지도 보기</button></div></div>`; }
+  if(stage==='going'){ return `<div class="screen dark on-dark">${head}<div class="pad stack g24" style="flex:1"><div><span class="status-pill">${icon('clock','s')} ${s.e}에 해산</span><h2 class="h1 mt16">${esc(c.name)}</h2><p class="body muted mt8">동행자 ${cnt.checked}명과 진행 중. 가장 느린 사람 기준으로요.</p></div><div class="card" style="background:rgba(255,255,255,.08);color:var(--surface)"><div class="row between"><span class="cap muted">출발 ${s.t}</span><span class="cap muted">해산 ${s.e}</span></div><div class="progress"><i style="width:42%"></i></div></div><div class="map">${mapSVG({focus:[c.id],hideDash:true,zoom:true,dark:true,label:c.name+' 코스 지도'})}</div></div><div class="sticky-cta"><button type="button" class="btn primary block" onclick="hostEnd('${id}')">해산하기</button></div></div>`; }
+  return `<div class="screen">${head}<div class="pad stack g16"><div><div class="time" style="font-size:16px">${fmtWhen(s)}</div><h2 class="h1 mt8">${esc(c.name)}</h2><p class="cap muted mt8">출발 ${esc(c.start)} · 체크인 마감 ${s.t}</p></div>
+    <div class="count-grid"><div class="c"><b>${cnt.applied}</b><span class="cap muted">신청</span></div><div class="c"><b>${cnt.checked}</b><span class="cap muted">체크인</span></div><div class="c"><b>${Math.max(0,cnt.applied-cnt.checked)}</b><span class="cap muted">아직</span></div></div>
+    <div class="card"><div class="body">체크인은 동행자가 각자 해요. 마감 시각이 지나면 온 사람과 출발하면 돼요. 안 온 사람은 "불참"으로만 남고 따로 표시되지 않아요.</div></div>
+    <div class="map">${mapSVG({focus:[c.id],hideDash:true,zoom:true,label:c.name+' 코스 지도'})}</div>
+    <div class="demo-strip"><span>프로토타입 데모</span><button type="button" onclick="hostSimCheck('${id}')">동행자 신청·체크인 시뮬레이션 (+1)</button></div>
+    <button type="button" class="btn outline block" onclick="hostCancelSheet('${id}')">회차 취소</button></div>
+    <div class="sticky-cta"><button type="button" class="btn primary block" ${cnt.checked===0?'disabled':''} onclick="hostStart('${id}')">${cnt.checked===0?'체크인한 동행자가 없어요':'출발하기'}</button></div></div>`;
+}
+function hostSimCheck(id){ const s=sessionById(id); const c=S.hostCounts[id]||{applied:s.applied,checked:0}; if(c.checked>=c.applied){ if(c.applied>=s.cap) return; c.applied+=1; } c.checked+=1; S.hostCounts[id]=c; save(); render(); announce(`신청 ${c.applied}명, 체크인 ${c.checked}명`); }
+function hostStart(id){ S.hostStage[id]='going'; save(); render(); announce('출발했어요'); }
+function hostEnd(id){ const s=sessionById(id); S.hostStage[id]='ended'; if(!S.done.includes(s.course)) S.done.push(s.course); S.justDone=s.course; save(); render(); announce('해산했어요. 전원 완주예요'); }
+function hostCancelSheet(id){ const s=sessionById(id); const c=course(s.course); const cnt=(S.hostCounts[id]||{applied:s.applied}).applied; openSheet(`<div class="h2">회차를 취소할까요?</div><p class="body">"${esc(c.name)}" ${fmtWhen(s)}. 동행자 ${cnt}명에게 바로 알림이 가요.${s.d===0?' 오늘 출발이라 곧 출발이에요.':''}</p><div class="stack g12"><button type="button" class="btn secondary block" onclick="hostCancel('${id}')">회차 취소</button><button type="button" class="btn outline block" onclick="closeSheet()">그대로 둘게요</button></div>`,{label:'회차 취소 확인'}); }
+function hostCancel(id){ S.cancelledSessions.push(id); S.hosted=S.hosted.filter(x=>x!==id); save(); closeSheet(); nav('#/find'); announce('회차를 취소했어요. 동행자에게 알림이 갔어요'); }
+
+/* ===================== D · 내 동네 지도 ===================== */
+let mapTab='all';
+function viewMap(courseId){ const doneIds=S.done; const just=S.justDone; const doneCourses=allCourses().filter(c=>doneIds.includes(c.id)); const notYet=allCourses().filter(c=>!doneIds.includes(c.id));
+  const list = mapTab==='done'?doneCourses : mapTab==='notyet'?notYet : doneCourses.concat(notYet);
+  return `<div class="screen"><header class="topbar"><h1 class="title left">내 동네 지도</h1><button type="button" class="textbtn" onclick="nav('#/me')">${icon('shield','s')} 나만 보기</button></header>
+  <div class="map full">${mapSVG({done:doneIds,just,label:'내 동네 지도. 완주한 코스 '+doneIds.length+'개'})}</div>
+  <div style="background:var(--surface);border-radius:var(--r-card) var(--r-card) 0 0;margin-top:-24px;position:relative;padding:var(--s3) 0 0;flex:1">
+    <div class="grab" style="width:40px;height:4px;border-radius:2px;background:var(--border);margin:0 auto" aria-hidden="true"></div>
+    <div class="pad mt16"><div class="row between"><div><div class="h2">완주한 코스 ${doneIds.length}개</div><div class="cap muted">순위도 경쟁도 없어요</div></div></div>
+    <div class="legend mt16"><span><i></i>완주한 코스</span>${just?'<span><i class="acc"></i>방금 완주</span>':''}<span><i class="dash"></i>아직 안 가본 코스</span></div>
+    <div class="strip mt16" style="padding:0" role="group" aria-label="코스 필터">${[['all','전체'],['done','완주'],['notyet','아직']].map(([k,l])=>`<button type="button" class="chip" aria-pressed="${mapTab===k}" onclick="mapTab='${k}';render()">${l}</button>`).join('')}</div>
+    <ul class="mt8">${list.map(c=>{const d=doneIds.includes(c.id); const open=sessions().filter(s=>s.course===c.id&&!S.cancelledSessions.includes(s.id)&&s.d>=0); return `<li><button type="button" class="list-row" onclick="courseSheet('${c.id}')"><span class="thumb ${d?'':'muted'}">${thumbSVG(c)}</span><span class="stack" style="flex:1;gap:var(--s1);text-align:left"><span class="h3" style="font-size:16px">${esc(c.name)}</span><span class="cap muted">${ACT[c.act]} · ${c.km}km · ${c.gu}${just===c.id?' · 방금 완주':d?' · 완주':open.length?' · 열린 회차 '+open.length:''}</span></span>${icon('fwd','muted')}</button></li>`;}).join('')}</ul></div><div class="footer-space"></div></div></div>`;
+}
+function courseSheet(id){ const c=course(id); const d=S.done.includes(id); const open=sessions().filter(s=>s.course===id&&!S.cancelledSessions.includes(s.id)&&s.d>=0).sort((a,b)=>a.d-b.d);
+  openSheet(`<div class="row between"><div><div class="h2">${esc(c.name)}</div><div class="cap muted">${ACT[c.act]} · ${c.km}km · 약 ${c.min}분 · ${d?'완주':'아직 안 가본 코스'}</div></div>${d?'<span class="badge">완주</span>':''}</div><div class="map">${mapSVG({focus:[id],hideDash:true,zoom:true,label:c.name+' 코스 지도'})}</div><div class="cap muted">출발 ${esc(c.start)} → 해산 ${esc(c.end)} · ${c.by==='me'?'내가 만든 코스':'다른 길잡이가 만든 코스'}</div>
+  ${open.length?`<div class="h3">이 코스로 열린 회차</div><div class="stack g8">${open.map(s=>`<button type="button" class="opt" onclick="closeSheet();nav('#/session/${s.id}')"><span class="stack" style="flex:1;gap:var(--s1)"><span class="time">${fmtWhen(s)}</span><span class="cap muted">정원 ${s.cap}명 중 ${appliedCount(s)}명 신청</span></span>${icon('fwd')}</button>`).join('')}</div>`:`<div class="empty" style="padding:var(--s4)"><div class="body">아직 열린 모임이 없어요</div><button type="button" class="btn outline" onclick="closeSheet();nav('#/host/new')">${icon('plus')} 이 코스로 회차 열기</button></div>`}
+  <button type="button" class="btn outline block" onclick="closeSheet()">닫기</button>`,{label:c.name}); }
+
+/* ===================== E · 회차 열기 ===================== */
+let H = { act:null, courseMode:null, course:null, start:'', end:'', km:'', d:null, t:'19:30', e:'', cap:8 };
+function viewHostNew(step){ step=Number(step)||0;
+  if(!S.verified && step===0){ return `<div class="screen"><header class="topbar"><button type="button" class="iconbtn" aria-label="뒤로" onclick="nav('#/find')">${icon('back')}</button><h1 class="title">회차 열기</h1><span class="iconbtn" aria-hidden="true"></span></header>
+    <div class="pad stack g24" style="flex:1;justify-content:center"><div class="okicon">${icon('shield')}</div><div><h2 class="h1">회차를 열려면 본인인증이 필요해요</h2><p class="body muted mt12">처음 보는 사람들과 야외에서 같이 걷는 모임이라, 여는 사람은 누구인지 확인된 사람이어야 해요. 인증 정보는 동행자에게 보이지 않아요.</p></div><div class="card"><div class="body">인증하면 이 회차의 길잡이가 돼요. 길잡이는 코스·시각·정원을 정하고, 당일에 출발과 해산을 눌러요.</div></div></div>
+    <div class="sticky-cta"><div class="stack g12"><button type="button" class="btn primary block" onclick="S.verified=true;save();nav('#/host/new/1');announce('본인인증이 끝났어요 (프로토타입)')">본인인증 하기</button><span class="cap muted" style="text-align:center">프로토타입: 버튼을 누르면 인증이 끝난 것으로 진행해요</span></div></div></div>`; }
+  if(step===0) step=1;
+  const heads=['','활동','코스','날짜와 정원','미리보기'];
+  const bar=`<div class="pad mt8"><div class="steps">${[1,2,3,4].map(i=>`<i class="${i<=step?'on':''}"></i>`).join('')}</div></div>`;
+  const head=`<header class="topbar"><button type="button" class="iconbtn" aria-label="이전" onclick="${step===1?"nav('#/find')":`nav('#/host/new/${step-1}')`}">${icon('back')}</button><h1 class="title">회차 열기 · ${heads[step]}</h1><span class="iconbtn" aria-hidden="true"></span></header>${bar}`;
+  if(step===1){ return `<div class="screen">${head}<div class="pad stack g16 mt24"><h2 class="h2">어떤 활동인가요?</h2><div class="stack g8">${Object.entries(ACT).map(([k,l])=>`<button type="button" class="opt" aria-pressed="${H.act===k}" onclick="H.act='${k}';render()"><span class="check ${H.act===k?'on':''}">${H.act===k?icon('check','s'):''}</span><span class="stack" style="gap:0"><span class="body" style="font-weight:700">${l}</span><span class="cap muted">${{walk:'말없이 걸어도 괜찮은 저녁 한 바퀴',jog:'가장 느린 사람에게 맞추는 페이스',hike:'오르막 적은 초보 코스만',bike:'따릉이로도 충분한 평지 코스'}[k]}</span></span></button>`).join('')}</div></div><div class="sticky-cta"><button type="button" class="btn primary block" ${H.act?'':'disabled'} onclick="nav('#/host/new/2')">${H.act?'다음':'활동을 골라 주세요'}</button></div></div>`; }
+  if(step===2){ const rec=allCourses().filter(c=>c.act===H.act&&c.gu===MY_GU); const ok = H.courseMode==='pick'?!!H.course : (H.courseMode==='new' && H.start && H.end && H.km);
+    return `<div class="screen">${head}<div class="pad stack g16 mt24"><h2 class="h2">어느 코스로 갈까요?</h2>
+    ${rec.length?`<div class="cap muted">${MY_GU}에 다른 길잡이가 만든 ${ACT[H.act]} 코스가 있어요. 그대로 써도 돼요.</div><div class="stack g8">${rec.map(c=>`<button type="button" class="opt" aria-pressed="${H.courseMode==='pick'&&H.course===c.id}" onclick="H.courseMode='pick';H.course='${c.id}';render()"><span class="thumb muted">${thumbSVG(c)}</span><span class="stack" style="flex:1;gap:var(--s1)"><span class="body" style="font-weight:700">${esc(c.name)}</span><span class="cap muted">${c.km}km · 약 ${c.min}분 · ${esc(c.start)} → ${esc(c.end)}</span></span></button>`).join('')}</div>`:`<div class="cap muted">${MY_GU}에 아직 ${ACT[H.act]} 코스가 없어요. 새로 그려 주세요.</div>`}
+    <button type="button" class="opt" aria-pressed="${H.courseMode==='new'}" onclick="H.courseMode='new';H.course=null;render()"><span class="check ${H.courseMode==='new'?'on':''}">${H.courseMode==='new'?icon('check','s'):''}</span><span class="body" style="font-weight:700">새로 그리기</span></button>
+    ${H.courseMode==='new'?`<div class="stack g12"><div class="field"><label for="hs">출발 지점</label><div class="box"><input id="hs" value="${esc(H.start)}" placeholder="예: 망원나들목" oninput="H.start=this.value"></div></div><div class="field"><label for="he">해산 지점</label><div class="box"><input id="he" value="${esc(H.end)}" placeholder="예: 망원한강공원 주차장 앞" oninput="H.end=this.value"></div></div><div class="field"><label for="hk">거리 (km)</label><div class="box"><input id="hk" inputmode="decimal" value="${esc(H.km)}" placeholder="예: 3.2" oninput="H.km=this.value"></div></div><p class="cap muted">거리를 넣으면 예상 시간과 난이도를 계산해요. 실제 앱에서는 지도에서 지점을 찍어요.</p><button type="button" class="btn outline" onclick="render()">입력 확인</button></div>`:''}
+    </div><div class="sticky-cta"><button type="button" class="btn primary block" ${ok?'':'disabled'} onclick="nav('#/host/new/3')">${ok?'다음':'코스를 골라 주세요'}</button></div></div>`; }
+  if(step===3){ const c=H.courseMode==='pick'?course(H.course):null; const min=c?c.min:Math.round(Number(H.km||0)*(H.act==='bike'?5:H.act==='hike'?36:12)); const endAuto=(t,m)=>{ if(!/^\d{2}:\d{2}$/.test(t)) return ''; const [h,mm]=t.split(':').map(Number); const tot=h*60+mm+m; return `${String(Math.floor(tot/60)%24).padStart(2,'0')}:${String(tot%60).padStart(2,'0')}`;}; if(!H.e) H.e=endAuto(H.t,min||40);
+    const reason = H.d===null?'날짜를 골라 주세요':!H.t?'출발 시각을 넣어 주세요':!H.e?'해산 시각을 넣어 주세요':''; const ok=!reason;
+    return `<div class="screen">${head}<div class="pad stack g16 mt24"><h2 class="h2">언제, 몇 명과 갈까요?</h2>
+    <div class="field"><label>날짜</label><div class="strip fit" style="padding:0" role="group" aria-label="날짜">${Array.from({length:7},(_,i)=>i).map(i=>{const x=dateOf(i);return `<button type="button" class="day ${i===0?'today':''}" aria-pressed="${H.d===i}" aria-label="${fmtDay(i)}" onclick="H.d=${i};render()"><span class="w">${WD[x.getDay()]}</span><span class="d">${x.getDate()}</span></button>`;}).join('')}</div>${H.d!==null?`<div class="cap">${fmtDay(H.d)}</div>`:''}</div>
+    <div class="row g12"><div class="field" style="flex:1"><label for="ht">출발</label><div class="box"><input id="ht" type="time" value="${H.t}" onchange="H.t=this.value;H.e='';render()"></div></div><div class="field" style="flex:1"><label for="he2">해산</label><div class="box"><input id="he2" type="time" value="${H.e}" onchange="H.e=this.value"></div></div></div>
+    <p class="cap muted">약 ${min}분 코스라 해산 시각을 제안했어요. 바꿔도 돼요.</p>
+    <div class="field"><label for="hc">정원</label><div class="box"><input id="hc" type="number" min="4" max="12" value="${H.cap}" onchange="H.cap=Math.min(12,Math.max(4,Number(this.value)||8));render()"><span class="cap muted">4 ~ 12명</span></div></div>
+    <p class="cap muted">가장 느린 사람 기준 페이스를 한 사람이 지킬 수 있는 크기예요.</p></div>
+    <div class="sticky-cta"><button type="button" class="btn primary block" ${ok?'':'disabled'} onclick="nav('#/host/new/4')">${ok?'미리보기':reason}</button></div></div>`; }
+  if(step===4){ const c=H.courseMode==='pick'?course(H.course):{name:`${esc(H.start)} → ${esc(H.end)}`,km:Number(H.km),min:Math.round(Number(H.km)*12),start:H.start,end:H.end,act:H.act,level:'easy',gu:MY_GU,pts:'90,205 200,205 200,140'};
+    return `<div class="screen">${head}<div class="pad stack g16 mt24"><h2 class="h2">동행자에게 이렇게 보여요</h2>
+    <div class="card"><div class="row g8"><span class="chip sm">${ACT[H.act]}</span><span class="chip sm">${LEVEL[c.level]}</span><span class="chip sm">${MY_GU}</span></div><div class="time">${fmtDay(H.d)} ${H.t} → ${H.e}</div><div class="h3">${c.name}</div><div class="cap muted">${icon('shield','s')} 본인인증 길잡이 · 정원 ${H.cap}명</div><div class="divider"></div><div class="num-l">${c.km}km</div><div class="route-track"><span class="dot"></span><span class="line"></span><span class="dot end"></span></div><div class="row between"><div><div class="time">${H.t}</div><div class="cap muted">출발 · ${esc(c.start)}</div></div><div style="text-align:right"><div class="time">${H.e}</div><div class="cap muted">끝나면 해산 · ${esc(c.end)}</div></div></div></div>
+    <div class="card"><div class="h3">열면 이렇게 돼요</div><ul class="stack g8 body"><li>${MY_GU} 찾기 목록에 바로 올라가요</li><li>동행자 이름·연락처는 보이지 않고 인원만 보여요</li><li>출발 전까지 언제든 취소할 수 있고, 취소하면 전원에게 알림이 가요</li><li>출발 시각 15분 뒤까지 체크인이 없으면 자동으로 취소돼요</li></ul></div></div>
+    <div class="sticky-cta"><button type="button" class="btn primary block" onclick="createSession()">회차 열기</button></div></div>`; }
+  return notFound();
+}
+function createSession(){ let cid=H.course; if(H.courseMode==='new'){ cid='u'+Date.now(); S.courses=S.courses||[]; S.courses.push({id:cid,name:`${H.start} → ${H.end}`,gu:MY_GU,act:H.act,km:Number(H.km),min:Math.round(Number(H.km)*12),level:'easy',start:H.start,end:H.end,pts:'90,205 200,205 200,140',by:'me'}); }
+  const s={id:'h'+Date.now(),course:cid,d:H.d,t:H.t,e:H.e,cap:H.cap,applied:0,verified:true,cancelRule:'출발 3시간 전 강수확률 60% 이상이면 취소, 전원 알림'}; S.created.push(s); S.hosted.push(s.id); S.hostCounts[s.id]={applied:0,checked:0}; save();
+  const c=course(cid); H={ act:null, courseMode:null, course:null, start:'', end:'', km:'', d:null, t:'19:30', e:'', cap:8 }; afterRender=()=>openSheet(`<div class="okicon">${icon('check')}</div><div><div class="h1">회차를 열었어요</div><p class="body muted mt8">이 회차의 길잡이가 됐어요. 동행자가 신청하면 인원이 올라가요.</p></div><div class="divider"></div><div><div class="h3">${esc(c.name)}</div><div class="time mt8">${fmtWhen(s)}</div><div class="cap muted">${esc(c.start)}</div></div><div class="map">${mapSVG({focus:[cid],hideDash:true,zoom:true,label:c.name+' 코스 지도'})}</div><div class="stack g12"><button type="button" class="btn secondary block" onclick="icsFor('${s.id}')">${icon('cal')} 내 캘린더에 추가</button><button type="button" class="btn outline block" onclick="closeSheet();nav('#/session/${s.id}')">회차 보기</button><button type="button" class="textbtn" style="align-self:center" onclick="closeSheet()">닫기</button></div>`,{label:'회차 열림'}); if(location.hash==='#/find') render(); else nav('#/find');
+  announce('회차를 열었어요'); }
+
+/* ===================== G · 나 ===================== */
+function viewMe(){ const mine=sessions().filter(s=>(isApplied(s.id)||isMine(s))&&!S.cancelledSessions.includes(s.id)).sort((a,b)=>a.d-b.d);
+  return `<div class="screen"><header class="topbar"><h1 class="title left">나</h1><span class="iconbtn" aria-hidden="true"></span></header><div class="pad stack g24 mt8">
+  <div class="card" style="gap:var(--s2)"><div class="h3">신청·개설한 회차</div>${mine.length?`<ul>${mine.map(s=>{const c=course(s.course);return `<li><button type="button" class="list-row" onclick="nav('#/session/${s.id}')"><span class="stack" style="flex:1;gap:var(--s1);text-align:left"><span class="time">${fmtWhen(s)}</span><span class="body">${esc(c.name)}</span><span class="cap muted">${isMine(s)?'내가 여는 회차':'신청됨'}</span></span>${icon('fwd','muted')}</button></li>`;}).join('')}</ul>`:`<p class="body muted">아직 없어요. 찾기에서 회차를 골라 보세요.</p>`}</div>
+  <div class="card"><div class="row between"><div><div class="h3">이동 기록 공개</div><div class="cap muted">기본은 나만 보기. 공유는 코스마다 따로 골라요.</div></div><button type="button" class="toggle" role="switch" aria-checked="${S.privacy!=='me'}" aria-label="완주 코스 공유 허용" onclick="S.privacy=S.privacy==='me'?'share':'me';save();render();announce(S.privacy==='me'?'나만 보기로 바꿨어요':'공유를 허용했어요. 코스마다 따로 고를 수 있어요')"></button></div><p class="cap muted">기록은 체크인부터 해산까지만 남아요.</p></div>
+  <div class="card"><div class="row between"><div><div class="h3">본인인증</div><div class="cap muted">${S.verified?'인증됨 · 회차를 열 수 있어요':'아직 안 했어요 · 회차를 열 때 필요해요'}</div></div>${S.verified?'<span class="badge">완료</span>':`<button type="button" class="btn outline" onclick="nav('#/host/new')">인증</button>`}</div></div>
+  <div class="card"><div class="h3">완주한 코스 ${S.done.length}개</div><button type="button" class="btn outline" onclick="nav('#/map')">${icon('map')} 지도에서 보기</button></div>
+  <div class="footer-space"></div></div></div>`; }
+function notFound(){ return `<div class="screen"><header class="topbar"><button type="button" class="iconbtn" aria-label="뒤로" onclick="nav('#/find')">${icon('back')}</button><h1 class="title">없는 회차</h1><span class="iconbtn" aria-hidden="true"></span></header><div class="pad mt24"><div class="empty"><div class="h3">이 회차를 찾을 수 없어요</div><p class="body muted">취소됐거나 주소가 잘못됐을 수 있어요.</p><button type="button" class="btn secondary" onclick="nav('#/find')">찾기로 가기</button></div></div></div>`; }
+
+render();
+</script>
+</body>
+</html>
