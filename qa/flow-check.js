@@ -108,7 +108,12 @@ const { chromium } = require('playwright'); const path = require('path');
   await p.evaluate(() => msgSheet('s1', 1)); await p.waitForTimeout(150); R.overscroll = await overscrollOf(p); await p.evaluate(() => closeSheet());
   const dk = await b.newPage({ viewport: { width: 1440, height: 900 } }); dk.on('pageerror', e => errs.push('1440 ' + e)); await dk.route('**/fonts.g*/**', r => r.abort());
   await dk.goto('file://' + path.resolve(__dirname, '../app/index.html')); await dk.evaluate(() => { S.applied = ['s1']; save(); location.hash = '#/session/s1/chat'; }); await dk.waitForTimeout(250);
-  await dk.evaluate(() => msgSheet('s1', 1)); await dk.waitForTimeout(150); R.overscrollDesk = await overscrollOf(dk); await dk.close();
+  await dk.evaluate(() => msgSheet('s1', 1)); await dk.waitForTimeout(150); R.overscrollDesk = await overscrollOf(dk);
+  // 10 r8: "오늘" 없음 (MANUAL v1.7 §11 · DESIGN 7칸) · 화면 글자와 읽기 이름(aria-label) 모두. 찾기(고정 카드 · 날짜 줄) · 회차 상세 · 데모 패널
+  const noToday = pg => pg.evaluate(() => { const t = document.body.innerText + ' ' + [...document.querySelectorAll('[aria-label]')].map(e => e.getAttribute('aria-label')).join(' '); return !/오늘/.test(t); });
+  await go('#/find'); const nt1 = await noToday(p); await go('#/session/s1'); const nt2 = await noToday(p);
+  await dk.evaluate(() => closeSheet()); const nt3 = await noToday(dk); await dk.close();
+  R.noToday = nt1 && nt2 && nt3;
   R.errors = errs;
   console.log(JSON.stringify(R, null, 1)); await b.close();
   // 판정 · 불리언은 true여야 통과(endOk만 false = 해산 시각이 맞으면 버튼이 풀림) · 값 항목은 아래 기대값과 같아야 통과

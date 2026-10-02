@@ -18,7 +18,7 @@ npm install
 npx playwright install chromium
 npm run serve                 # http://localhost:5173 (app/)
 node qa/flow-check.js         # 마지막 줄 PASS, 하나라도 틀리면 FAIL과 종료 코드 1
-node qa/render.js r8          # shots/r8-*.png + qa/r8-report.md
+node qa/render.js r9          # shots/r9-*.png + qa/r9-report.md
 ```
 빌드 단계는 없다. `app/`의 HTML · CSS · JS가 그대로 배포된다(GitHub Pages, 저장소 루트 `index.html`이 `app/`으로 보낸다).
 
@@ -34,9 +34,9 @@ node qa/render.js r8          # shots/r8-*.png + qa/r8-report.md
 
 - 주 버튼(`.btn.primary`, accent 채움)은 화면당 하나. 시트 안 확인은 보조 버튼
 - accent `#FFB547`은 주 버튼 · 선택 상태에만. 지도 코스 · 글자 · 아이콘 · 새 소식 표시에 쓰지 않는다
-- 날짜 · 시각은 항상 "9/30 (수) 19:00 → 19:30". "내일", "평일", "N분 전" 같은 상대 표현 금지. 시각 입력에 `type=time` 금지
+- 날짜 · 시각은 항상 "9/30 (수) 19:00 → 19:30". "오늘", "내일", "평일", "N분 전" 같은 상대 표현 금지. 시각 입력에 `type=time` 금지
 - 금지어 0: 외로움 · 만남 · 인연 · 설렘 · 말없이. em dash(—) 0
-- 사람(아이콘 · 닉네임)은 회차 대화방과 나 화면에만. 카드 · 목록의 인원은 "3/6명 신청중" 숫자만, 채팅 목록의 보낸 사람은 역할만. 1:1 DM과 상시 채팅방은 없다
+- 사람(아이콘 · 닉네임)은 회차 대화방과 나 화면에만. 카드 · 목록의 인원은 "3/6명 신청 중" 숫자만, 채팅 목록의 보낸 사람은 역할만. 1:1 DM과 상시 채팅방은 없다
 - 완주 코스는 활동색 4, 미완주는 점선. 활동은 색만으로 구분하지 않는다(이름 병기)
 - 지도가 보이는 곳엔 "© OpenStreetMap contributors"
 - 터치 영역 44px 이상, 360px에서도 가로 스크롤 0
@@ -51,7 +51,7 @@ node qa/render.js r8          # shots/r8-*.png + qa/r8-report.md
 
 PR을 리뷰할 때 아래는 P1(머지 전 반드시 고침)로 표시한다.
 
-- `MANUAL.md`가 바뀌었거나 해시가 STATUS.md의 `manual_sha`와 다르다
+- `MANUAL.md`가 바뀌었는데 §12에 같은 날짜의 해제 · 재잠금 행이 없거나, 해시가 STATUS.md의 `manual_sha`와 다르다(헤드 승인 개정은 §12 행 + 해시 일치로 확인)
 - `app/` 안에 em dash(—) 또는 금지어(외로움 · 만남 · 인연 · 설렘 · 말없이)가 있다
 - 상대 시간 표현이나 `type=time` 입력이 생겼다
 - accent(`#FFB547`, `var(--accent)`)가 주 버튼 · 선택 상태 밖에 쓰였거나, 한 화면에 주 버튼이 2개 이상이다

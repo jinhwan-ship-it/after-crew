@@ -76,7 +76,7 @@ function appliedCount(s) {
   const h = S.hostCounts[s.id];
   return (h ? h.applied : s.applied) + (isApplied(s.id) ? 1 : 0);
 }
-const seatsText = s => `${appliedCount(s)}/${s.cap}명 신청중`;
+const seatsText = s => `${appliedCount(s)}/${s.cap}명 신청 중`;
 const tripText = c => ({ loop: '한 바퀴', loop2: '두 바퀴', round: '왕복', oneway: '편도' })[c.trip] || '';
 function myTodaySession() {
   return sessions().find(s => s.d === 0 && (isApplied(s.id) || isMine(s)) && !isCancelled(s.id));
@@ -213,8 +213,8 @@ function icsFor(sid) {
   const body = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//After Crew//prototype r6//KO', 'BEGIN:VEVENT',
     `UID:${s.id}@aftercrew.proto`, `DTSTART;TZID=Asia/Seoul:${ymd}T${s.t.replace(':', '')}00`, `DTEND;TZID=Asia/Seoul:${ymd}T${endOf(s).replace(':', '')}00`,
     `SUMMARY:애프터 크루 · ${c.name}`, `LOCATION:${c.start}`,
-    `DESCRIPTION:${actLabel(c.act)} ${kmOf(c)}km · 예상 완주시간 ${minOf(c)}분 · 출발 ${c.start} · 해산 ${c.end}`,
-    'BEGIN:VALARM', 'TRIGGER:-PT1H', 'ACTION:DISPLAY', 'DESCRIPTION:1시간 뒤 출발', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    `DESCRIPTION:${actLabel(c.act)} ${kmOf(c)}km · 예상 완주 시간 ${minOf(c)}분 · 출발 ${c.start} · 해산 ${c.end}`,
+    'BEGIN:VALARM', 'TRIGGER:-PT1H', 'ACTION:DISPLAY', `DESCRIPTION:${s.t} 출발 · ${c.start}`, 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
   const url = URL.createObjectURL(new Blob([body], { type: 'text/calendar' }));
   const a = document.createElement('a'); a.href = url; a.download = `after-crew-${s.id}.ics`;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
@@ -321,7 +321,7 @@ function viewFind(dayParam) {
     .sort((a, b) => a.d - b.d || a.t.localeCompare(b.t));
   const strip = `<div class="strip" role="group" aria-label="날짜 선택">${Array.from({ length: 7 }, (_, i) => {
     const x = dateOf(i);
-    return `<button type="button" class="day ${i === 0 ? 'today' : ''}" data-fk="fday-${i}" aria-pressed="${day === i}" aria-label="${fmtDay(i)}${i === 0 ? ' 오늘' : ''}" onclick="nav('#/find/${day === i ? '' : i}')"><span class="w">${WD[x.getDay()]}</span><span class="d">${x.getDate()}</span></button>`;
+    return `<button type="button" class="day ${i === 0 ? 'today' : ''}" data-fk="fday-${i}" aria-pressed="${day === i}"${i === 0 ? ' aria-current="date"' : ''} aria-label="${fmtDay(i)}" onclick="nav('#/find/${day === i ? '' : i}')"><span class="w">${WD[x.getDay()]}</span><span class="d">${x.getDate()}</span></button>`;
   }).join('')}</div>`;
   const chips = `<div class="strip chips mt12" role="group" aria-label="활동">${[['all', '전체'], ...Object.keys(D.acts).map(k => [k, actLabel(k)])]
     .map(([k, l]) => `<button type="button" class="chip" data-fk="fchip-${k}" aria-pressed="${findAct === k}" onclick="findAct='${k}';render()">${l}</button>`).join('')}</div>`;
@@ -340,7 +340,7 @@ function viewFind(dayParam) {
     const byDay = {};
     list.forEach(s => { (byDay[s.d] = byDay[s.d] || []).push(s); });
     Object.keys(byDay).map(Number).sort((a, b) => a - b).forEach(d => {
-      body += `<div class="datehead">${fmtDay(d)}${d === 0 ? ' · 오늘' : ''}</div><div class="pad stack g12">${byDay[d].map(sessionCard).join('')}</div>`;
+      body += `<div class="datehead">${fmtDay(d)}</div><div class="pad stack g12">${byDay[d].map(sessionCard).join('')}</div>`;
     });
   }
   return `<div class="screen">${findBar(gu)}
@@ -352,7 +352,7 @@ function pinnedCard(s) {
   const go = isMine(s) ? `#/host/today/${s.id}` : `#/today/${s.id}`;
   const unread = unreadCount(s.id);
   return `<div class="pad mt16"><div class="card on-text" style="gap:var(--s3)">
-    <button type="button" class="stack g8" style="text-align:left" onclick="nav('${go}')" aria-label="오늘 회차 ${esc(c.name)}, ${fmtWhen(s)}, ${st}">
+    <button type="button" class="stack g8" style="text-align:left" onclick="nav('${go}')" aria-label="내 회차 ${esc(c.name)}, ${fmtWhen(s)}, ${st}">
       <span class="row between wrap"><span class="status-pill">${icon('clock', 's')} ${fmtWhen(s)}</span><span class="badge">${st}</span></span>
       <span class="h3">${esc(c.name)}</span>
       <span class="row between"><span class="cap muted">${actLabel(c.act)} · ${kmOf(c)}km · ${esc(c.start)}</span>${icon('fwd')}</span>
@@ -368,7 +368,7 @@ function sessionCard(s) {
   return `<button type="button" class="card tap" onclick="nav('#/session/${s.id}')" aria-label="${esc(c.name)}, ${fmtWhen(s)}, ${seatsText(s)}">
     <span class="row between"><span class="row g8">${actChip(c.act)}${plainChip(D.levels[c.level])}${c.gu !== myGu() ? plainChip(c.gu) : ''}</span>${status}</span>
     <span class="row top g12"><span class="stack g4 grow"><span class="time">${fmtWhen(s)}</span><span class="h3">${esc(c.name)}</span>
-      <span class="cap muted">${kmOf(c)}km · 예상 완주시간 ${minOf(c)}분</span><span class="cap">${seatsText(s)}</span></span>
+      <span class="cap muted">${kmOf(c)}km · 예상 완주 시간 ${minOf(c)}분</span><span class="cap">${seatsText(s)}</span></span>
       <span class="thumb">${thumbSVG(c, done)}</span></span>
   </button>`;
 }
@@ -391,14 +391,14 @@ function viewSession(id) {
   const full = appliedCount(s) >= s.cap && !applied;
   const fee = c.act === 'bike' ? bikeFee(c) : null;
   let cta;
-  if (cancelled) cta = `<button type="button" class="btn secondary block" onclick="nav('#/find')">다른 회차 찾기</button>`;
+  if (cancelled) cta = `<button type="button" class="btn secondary block" onclick="nav('#/find')">다른 모임 찾기</button>`;
   else if (mine && s.d === 0) cta = `<button type="button" class="btn primary block" onclick="nav('#/host/today/${id}')">당일 현황 보기</button>`;
   else if (mine) cta = `<div class="stack g12"><p class="cap muted center">${fmtDay(s.d)} ${s.t}에 출발해요. 당일 화면은 그날 열려요.</p>
-      <div class="row g12"><button type="button" class="btn secondary" style="flex:1" onclick="icsFor('${id}')">${icon('cal')} 내 캘린더에 추가</button><button type="button" class="btn outline" style="flex:1" onclick="hostCancelSheet('${id}')">회차 취소</button></div></div>`;
+      <button type="button" class="btn secondary block" onclick="icsFor('${id}')">${icon('cal')} 내 캘린더에 추가</button><button type="button" class="btn outline block" onclick="hostCancelSheet('${id}')">회차 취소</button></div>`;
   else if (applied && s.d === 0) cta = `<div class="stack g12"><button type="button" class="btn primary block" onclick="nav('#/today/${id}')">체크인하러 가기</button>
-      <div class="row g12"><button type="button" class="btn secondary" style="flex:1" onclick="icsFor('${id}')">${icon('cal')} 캘린더</button><button type="button" class="btn outline" style="flex:1" onclick="cancelSheet('${id}')">신청 취소</button></div></div>`;
+      <button type="button" class="btn secondary block" onclick="icsFor('${id}')">${icon('cal')} 내 캘린더에 추가</button><button type="button" class="btn outline block" onclick="cancelSheet('${id}')">신청 취소</button></div>`;
   else if (applied && c.act === 'bike') cta = `<div class="stack g12"><button type="button" class="btn secondary block" onclick="announce('따릉이 앱으로 이동해요 (프로토타입)')">${icon('ext')} 따릉이로 이동</button>
-      <div class="row g12"><button type="button" class="btn secondary" style="flex:1;min-width:0" onclick="icsFor('${id}')">${icon('cal')} 캘린더 추가</button><button type="button" class="btn outline" style="flex:1;min-width:0" onclick="cancelSheet('${id}')">신청 취소</button></div></div>`;
+      <button type="button" class="btn secondary block" onclick="icsFor('${id}')">${icon('cal')} 내 캘린더에 추가</button><button type="button" class="btn outline block" onclick="cancelSheet('${id}')">신청 취소</button></div>`;
   else if (applied) cta = `<div class="stack g12"><button type="button" class="btn secondary block" onclick="icsFor('${id}')">${icon('cal')} 내 캘린더에 추가</button>
       <button type="button" class="btn outline block" onclick="cancelSheet('${id}')">신청 취소</button></div>`;
   else if (full) cta = `<button type="button" class="btn primary block" disabled>정원이 찼어요</button>`;
@@ -409,9 +409,9 @@ function viewSession(id) {
   <div class="pad stack g16 mt16">
     <div class="row g8" style="flex-wrap:wrap">${actChip(c.act)}${plainChip(D.levels[c.level])}${plainChip(c.gu)}${badge}</div>
     <div><div class="time l">${fmtWhen(s)}</div><h2 class="h1 mt8">${esc(c.name)}</h2>
-      <p class="cap muted mt8 row g8">${icon('shield', 's')}<span>본인인증 길잡이 · ${seatsText(s)}</span></p></div>
+      <p class="cap muted mt8 row g8">${icon('shield', 's')}<span>인증한 길잡이 · ${seatsText(s)}</span></p></div>
     <div class="card" style="gap:var(--s4)">
-      <div class="row between" style="align-items:baseline"><span class="num-l">${kmOf(c)}km</span><span class="cap muted">${tripText(c)} · 예상 완주시간 ${minOf(c)}분</span></div>
+      <div class="row between" style="align-items:baseline"><span class="num-l">${kmOf(c)}km</span><span class="cap muted">${tripText(c)} · 예상 완주 시간 ${minOf(c)}분</span></div>
       <div class="route-track" aria-hidden="true"><span class="dot"></span><span class="line"></span><span class="dot end"></span></div>
       <div class="row between top g16"><div class="grow"><div class="time">${s.t}</div><div class="cap muted">출발 · ${esc(c.start)}</div></div>
         <div class="grow" style="text-align:right"><div class="time">${endOf(s)}</div><div class="cap muted">해산 · ${esc(c.end)}</div></div></div>
@@ -425,12 +425,12 @@ function viewSession(id) {
       <a href="#" class="linkrow" onclick="event.preventDefault();announce('따릉이 요금 안내 페이지로 이동해요 (프로토타입)')">따릉이 요금 안내 ${icon('ext', 's')}</a></div>` : ''}
     <div class="card"><div class="h3">이 회차의 약속</div>
       <ul class="stack g8 body">
-        <li>가입·참가비 없음</li>
+        <li>가입·참가비가 없어요</li>
         <li>가장 느린 사람에 맞춰 가요</li>
-        <li>${endOf(s)}에 해산</li>
-        <li>이동 기록은 체크인~해산만, 기본 나만 보기</li>
-        <li>악천후 취소: ${esc(D.weatherRule)}</li>
-        <li>못 가게 되면 출발 전까지 언제든 취소</li>
+        <li>${endOf(s)}에 해산해요</li>
+        <li>이동 기록은 체크인부터 해산까지만, 기본은 나만 보기예요</li>
+        <li>날씨로 취소할 때: ${esc(D.weatherRule)}</li>
+        <li>못 가게 되면 출발 전까지 언제든 취소할 수 있어요</li>
       </ul></div>
     <div class="footer-space"></div>
   </div>
@@ -438,11 +438,11 @@ function viewSession(id) {
 }
 function applySheet(id) {
   const s = sessionById(id); const c = course(s.course);
-  openSheet(`<div class="h2">이 회차에 신청할게요</div>
+  openSheet(`<div class="h2">이 회차에 신청할까요?</div>
     <div class="stack g12 body">
       <div class="row g12">${icon('clock')}<div><div class="time">${fmtWhen(s)}</div><div class="cap muted">${esc(c.name)}</div></div></div>
       <div class="row g12">${icon('pin')}<div><div>출발 ${esc(c.start)}</div><div class="cap muted">해산 ${esc(c.end)}</div></div></div>
-      <div class="row g12 top">${icon('shield')}<div>이동 기록은 체크인~해산만 남고, 기본은 나만 봐요.</div></div>
+      <div class="row g12 top">${icon('shield')}<div>이동 기록은 체크인부터 해산까지만 남고, 기본 공개 범위는 나만 보기예요.</div></div>
       <div class="row g12 top">${icon('chat')}<div>신청하면 회차 대화방에 들어가요. 해산 24시간 뒤 사라져요.</div></div>
     </div>
     <div class="stack g12 mt8"><button type="button" class="btn secondary block" onclick="doApply('${id}')">신청하기</button><button type="button" class="btn outline block" onclick="closeSheet()">닫기</button></div>`, { label: '신청 확인' });
@@ -454,8 +454,8 @@ function doApply(id) {
 function cancelSheet(id) {
   const s = sessionById(id); const c = course(s.course);
   openSheet(`<div class="h2">신청을 취소할까요?</div>
-    <p class="body">"${esc(c.name)}" ${fmtWhen(s)}. 자리는 바로 다른 사람에게 열리고, 회차 대화방에서도 나가요. 기기 캘린더에 넣었다면 거기서도 지워 주세요.</p>
-    <div class="stack g12"><button type="button" class="btn secondary block" onclick="doCancel('${id}')">신청 취소</button><button type="button" class="btn outline block" onclick="closeSheet()">그대로 둘게요</button></div>`, { label: '신청 취소 확인' });
+    <p class="body">"${esc(c.name)}" ${fmtWhen(s)}. 자리는 바로 다른 사람에게 열리고 대화방에서도 나가요. 캘린더에 넣었다면 직접 지워 주세요.</p>
+    <div class="stack g12"><button type="button" class="btn secondary block" onclick="doCancel('${id}')">신청 취소</button><button type="button" class="btn outline block" onclick="closeSheet()">닫기</button></div>`, { label: '신청 취소 확인' });
 }
 function doCancel(id) {
   S.applied = S.applied.filter(x => x !== id); S.checkedIn = S.checkedIn.filter(x => x !== id);
@@ -511,7 +511,7 @@ function viewChat(id) {
   if (chatClosedFor(s)) {
     return `<div class="screen">${topbar('회차', { backTo: 'back()', right: reportBtn(id) })}${sessionTabs(s, 'chat')}
       <div class="pad mt24"><div class="empty"><div class="h3">${mine ? '대화방을 닫았어요' : '길잡이가 대화방을 닫았어요'}</div>
-      <p class="body muted">메시지는 모두에게서 사라졌어요. 신고된 메시지만 처리용으로 남아요.</p>
+      <p class="body muted">메시지는 모두에게서 사라졌어요. 신고된 메시지만 확인을 위해 남겨 둬요.</p>
       <button type="button" class="btn outline" onclick="replaceNav('#/session/${id}')">회차 정보 보기</button></div></div></div>`;
   }
   const msgs = chatMsgs(s);
@@ -525,7 +525,7 @@ function viewChat(id) {
   const quick = D.quick[mine ? 'guide' : 'peer'];
   const closeRow = mine && ended ? `<div class="pad"><div class="card" style="gap:var(--s2)"><div class="h4">해산했어요</div><p class="cap muted">이 방은 ${expireText(s)}에 사라져요. 지금 닫아도 돼요.</p><button type="button" class="btn outline" onclick="closeChatSheet('${id}')">대화방 닫기</button></div></div>` : '';
   return `<div class="screen">${topbar(esc(c.name), { backTo: 'back()', right: reportBtn(id) })}${sessionTabs(s, 'chat')}
-    <div class="pad mt16"><div class="notice">${icon('alert', 's')}<span>이 방은 해산 24시간 뒤 사라져요. 신고된 메시지만 처리용으로 남아요. 연락처를 나눌지는 각자 정해요.</span></div></div>
+    <div class="pad mt16"><div class="notice">${icon('alert', 's')}<span>이 방은 해산 24시간 뒤 사라지고, 신고된 메시지만 확인을 위해 남겨 둬요. 연락처를 나눌지는 각자 정해요.</span></div></div>
     <div class="chat" role="log" aria-live="polite" aria-label="회차 대화">${log}</div>
     ${closeRow}
     <div class="composer">
@@ -553,7 +553,7 @@ function msgSheet(id, i) {
 }
 function closeChatSheet(id) {
   openSheet(`<div class="h2">대화방을 닫을까요?</div><p class="body">닫으면 동행자 모두에게서 메시지가 사라져요. 다시 열 수 없어요.</p>
-    <div class="stack g12"><button type="button" class="btn secondary block" onclick="doCloseChat('${id}')">대화방 닫기</button><button type="button" class="btn outline block" onclick="closeSheet()">그대로 둘게요</button></div>`, { label: '대화방 닫기 확인' });
+    <div class="stack g12"><button type="button" class="btn secondary block" onclick="doCloseChat('${id}')">대화방 닫기</button><button type="button" class="btn outline block" onclick="closeSheet()">닫기</button></div>`, { label: '대화방 닫기 확인' });
 }
 function doCloseChat(id) { S.chatClosed[id] = true; save(); closeSheet(true); render(); announce('대화방을 닫았어요'); }
 
@@ -594,17 +594,17 @@ function viewToday(id) {
   return `<div class="screen">${topbar(`${fmtDay(0)} 회차`, { backTo: "nav('#/find')", right: reportBtn(id) })}
     <div class="pad stack g16">
       <div><div class="time l">${fmtWhen(s)}</div><h2 class="h1 mt8">${esc(c.name)}</h2></div>
-      <div class="card"><div class="row g12">${icon('pin')}<div><div class="body">출발 ${esc(c.start)}</div><div class="cap muted">체크인 마감 ${s.t} · 그 뒤엔 출발해요</div></div></div>
+      <div class="card"><div class="row g12">${icon('pin')}<div><div class="body">출발 ${esc(c.start)}</div><div class="cap muted">체크인 마감 ${s.t} · 마감 뒤엔 온 사람끼리 출발해요</div></div></div>
         ${c.act === 'bike' ? `<div class="divider"></div><div class="row g12">${icon('bike')}<div><div class="body">따릉이는 출발 대여소에서</div><div class="cap muted">${esc(c.start)}</div></div></div>` : ''}</div>
       ${chatRow(s)}
       ${courseMap(c)}
-      <p class="cap muted">체크인하면 이동 기록이 시작돼요. 위치 권한이 없어도 체크인은 되고, 완주는 체크인과 해산으로 정해져요.</p>
+      <p class="cap muted">체크인하면 이동 기록을 시작해요. 위치 권한이 없어도 체크인은 되고, 체크인한 뒤 길잡이가 해산을 누르면 완주로 남아요.</p>
     </div>
     <div class="sticky-cta"><div class="stack g12">${c.act === 'bike' ? `<button type="button" class="btn secondary block" onclick="announce('따릉이 앱으로 이동해요 (프로토타입)')">${icon('ext')} 따릉이로 이동</button>` : ''}<button type="button" class="btn primary block" onclick="checkIn('${id}')">체크인</button></div></div></div>`;
 }
 function checkIn(id) { if (!S.checkedIn.includes(id)) S.checkedIn.push(id); S.hostStage[id] = 'going'; save(); render(); announce('체크인됐어요. 이동 기록을 시작해요'); }
 function markDone(courseId) { S.done = S.done.filter(x => x !== courseId).concat(courseId); }
-function endSession(id) { const s = sessionById(id); S.hostStage[id] = 'ended'; markDone(s.course); save(); render(); announce('해산했어요. 완주예요'); }
+function endSession(id) { const s = sessionById(id); S.hostStage[id] = 'ended'; markDone(s.course); save(); render(); announce('해산했어요. 완주했어요'); }
 
 /* ================================================================
  * C' · 당일 (길잡이)
@@ -616,7 +616,7 @@ function viewHostToday(id) {
   if (s.d !== 0 && stage === 'before') {
     return `<div class="screen">${head}<div class="pad stack g16 mt16"><div class="time l">${fmtWhen(s)}</div><h2 class="h1">${esc(c.name)}</h2>
       <p class="body muted">당일 화면은 ${fmtDay(s.d)}에 열려요. 그때 체크인 현황을 보고 출발해요.</p>${chatRow(s)}
-      <div class="card" style="gap:var(--s2)"><div class="h4">지금 할 수 있는 것</div><p class="body">내 사정이나 악천후면 출발 전까지 언제든 회차를 취소할 수 있어요. 동행자에게 바로 알림이 가요.</p></div></div>
+      <div class="card" style="gap:var(--s2)"><div class="h4">지금 할 수 있는 것</div><p class="body">내 사정이나 날씨 때문에 출발 전까지 언제든 회차를 취소할 수 있어요. 동행자에게 바로 알림이 가요.</p></div></div>
       <div class="sticky-cta"><div class="stack g12"><button type="button" class="btn secondary block" onclick="nav('#/session/${id}')">회차 보기</button><button type="button" class="btn outline block" onclick="hostCancelSheet('${id}')">회차 취소</button></div></div></div>`;
   }
   if (stage === 'ended') {
@@ -636,8 +636,8 @@ function viewHostToday(id) {
   }
   return `<div class="screen">${head}<div class="pad stack g16">
     <div><div class="time l">${fmtWhen(s)}</div><h2 class="h1 mt8">${esc(c.name)}</h2><p class="cap muted mt8">출발 ${esc(c.start)} · 체크인 마감 ${s.t}</p></div>
-    <div class="count-grid"><div class="c"><b>${cnt.applied}</b><span class="cap muted">신청</span></div><div class="c"><b>${cnt.checked}</b><span class="cap muted">체크인</span></div><div class="c"><b>${Math.max(0, cnt.applied - cnt.checked)}</b><span class="cap muted">아직</span></div></div>
-    <div class="card"><div class="body">체크인은 동행자가 각자 해요. 마감 시각이 지나면 온 사람과 출발해요. 안 온 사람은 "불참"으로만 남고 따로 표시되지 않아요.</div></div>
+    <div class="count-grid"><div class="c"><b>${cnt.applied}</b><span class="cap muted">신청</span></div><div class="c"><b>${cnt.checked}</b><span class="cap muted">체크인</span></div><div class="c"><b>${Math.max(0, cnt.applied - cnt.checked)}</b><span class="cap muted">체크인 전</span></div></div>
+    <div class="card"><div class="body">체크인은 동행자가 각자 하고, 마감 시각이 지나면 온 사람과 출발해요. 안 온 사람은 "불참"으로만 기록되고, 따로 드러나거나 불이익은 없어요.</div></div>
     ${chatRow(s)}
     ${courseMap(c)}
     <div class="demo-strip" style="margin:0"><span>프로토타입 데모</span><button type="button" onclick="hostSimCheck('${id}')">동행자 신청·체크인 +1</button></div>
@@ -650,11 +650,11 @@ function hostSimCheck(id) {
   c.checked += 1; S.hostCounts[id] = c; save(); render(); announce(`신청 ${c.applied}명, 체크인 ${c.checked}명`);
 }
 function hostStart(id) { S.hostStage[id] = 'going'; save(); render(); announce('출발했어요'); }
-function hostEnd(id) { const s = sessionById(id); S.hostStage[id] = 'ended'; markDone(s.course); save(); render(); announce('해산했어요. 전원 완주예요'); }
+function hostEnd(id) { const s = sessionById(id); S.hostStage[id] = 'ended'; markDone(s.course); save(); render(); announce('해산했어요. 모두 완주했어요'); }
 function hostCancelSheet(id) {
   const s = sessionById(id); const c = course(s.course); const cnt = (S.hostCounts[id] || { applied: s.applied }).applied;
-  openSheet(`<div class="h2">회차를 취소할까요?</div><p class="body">"${esc(c.name)}" ${fmtWhen(s)}. 동행자 ${cnt}명에게 바로 알림이 가고, 대화방에 취소 안내가 올라가요.${s.d === 0 ? ' 오늘 출발이에요.' : ''}</p>
-    <div class="stack g12"><button type="button" class="btn secondary block" onclick="hostCancel('${id}')">회차 취소</button><button type="button" class="btn outline block" onclick="closeSheet()">그대로 둘게요</button></div>`, { label: '회차 취소 확인' });
+  openSheet(`<div class="h2">회차를 취소할까요?</div><p class="body">"${esc(c.name)}" ${fmtWhen(s)}. 동행자 ${cnt}명에게 바로 알림이 가고, 대화방에 취소 안내가 올라가요.${s.d === 0 ? ' 출발 당일이에요.' : ''}</p>
+    <div class="stack g12"><button type="button" class="btn secondary block" onclick="hostCancel('${id}')">회차 취소</button><button type="button" class="btn outline block" onclick="closeSheet()">닫기</button></div>`, { label: '회차 취소 확인' });
 }
 function hostCancel(id) { if (!isCancelled(id)) S.cancelledSessions.push(id); save(); closeSheet(true); nav('#/session/' + id); announce('회차를 취소했어요. 동행자에게 알림이 갔고, 대화방에 안내가 올라갔어요'); }
 
@@ -686,14 +686,14 @@ function viewMap() {
   const recHtml = recs.length ? `<ul class="recs" aria-label="추천 코스">${recs.map(c => { const n = openSessionsOf(c.id)[0];
     return `<li><button type="button" class="rec" onclick="courseSheet('${c.id}')" aria-label="추천 코스 ${esc(c.name)}, ${actLabel(c.act)}, 다음 회차 ${fmtDay(n.d)} ${n.t}">
       <span class="thumb">${thumbSVG(c, false)}</span><span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap row g8">${actDot(c.act)}${actLabel(c.act)} · ${kmOf(c)}km</span><span class="time muted">${fmtDay(n.d)} ${n.t}</span></span></button></li>`; }).join('')}</ul>`
-    : `<p class="pad cap muted">지금 열린 회차가 있는 안 가본 코스가 없어요.</p>`;
+    : `<p class="pad cap muted">안 가본 코스에 지금 열린 회차가 없어요.</p>`;
   const acts = Object.keys(D.acts);
   return `<div class="screen">${topbar('내 동네 지도', { right: `<button type="button" class="textbtn" onclick="nav('#/me/settings')">${icon('shield', 's')} ${S.privacy === 'me' ? '나만 보기' : '공유 허용'}</button>${bellBtn()}` })}
-    <div class="stack g8 mt8"><div class="pad row between"><span class="h4">다음 코스</span><span class="cap muted">열린 회차가 있는 안 가본 코스</span></div>${recHtml}</div>
+    <div class="stack g8 mt8"><div class="pad row between"><span class="h4">다음 코스</span><span class="cap muted">지금 회차가 열린, 안 가본 코스</span></div>${recHtml}</div>
     <div class="map full mt16">${mapView({ ids, done, fit, pxw: 390, pxh: 360, interactive: true, draw, label: `내 동네 지도. 완주한 코스 ${done.length}개. 코스를 누르면 자세히 볼 수 있어요` })}</div>
     <div class="pad mt16"><div class="h2">완주한 코스 ${done.length}개</div><div class="cap muted">순위도 경쟁도 없어요</div>
       <div class="legend mt12">${acts.map(a => `<span><i style="--c:var(--act-${a})"></i>${actLabel(a)}</span>`).join('')}<span><i class="dash"></i>아직 안 가본 코스</span></div>
-      <div class="strip chips mt16" style="padding-inline:0" role="group" aria-label="코스 필터">${[['all', '전체'], ['done', '완주'], ['notyet', '아직']].map(([k, l]) => `<button type="button" class="chip" data-fk="mtab-${k}" aria-pressed="${mapTab === k}" onclick="mapTab='${k}';render()">${l}</button>`).join('')}</div>
+      <div class="strip chips mt16" style="padding-inline:0" role="group" aria-label="코스 필터">${[['all', '전체'], ['done', '완주'], ['notyet', '안 가본 코스']].map(([k, l]) => `<button type="button" class="chip" data-fk="mtab-${k}" aria-pressed="${mapTab === k}" onclick="mapTab='${k}';render()">${l}</button>`).join('')}</div>
       <ul class="mt8">${list.map(c => { const d = done.includes(c.id); const n = openSessionsOf(c.id).length;
         return `<li><button type="button" class="list-row" onclick="courseSheet('${c.id}')"><span class="thumb">${thumbSVG(c, d)}</span>
           <span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap muted meta">${actDot(c.act)}${segs([actLabel(c.act), `${kmOf(c)}km`, c.gu !== myGu() ? c.gu : '', d ? '완주' : n ? `열린 회차 ${n}` : ''])}</span></span>${icon('fwd', 'muted')}</button></li>`; }).join('')}</ul>
@@ -702,7 +702,7 @@ function viewMap() {
 function courseSheet(id) {
   const c = course(id); const d = S.done.includes(id); const open = openSessionsOf(id);
   openSheet(`<div class="row between top"><div class="grow"><div class="h2">${esc(c.name)}</div>
-      <div class="cap muted row g8 mt8">${actDot(c.act)}<span>${actLabel(c.act)} · ${kmOf(c)}km · 예상 완주시간 ${minOf(c)}분</span></div></div>${d ? '<span class="badge">완주</span>' : ''}</div>
+      <div class="cap muted row g8 mt8">${actDot(c.act)}<span>${actLabel(c.act)} · ${kmOf(c)}km · 예상 완주 시간 ${minOf(c)}분</span></div></div>${d ? '<span class="badge">완주</span>' : ''}</div>
     <div class="map">${mapView({ ids: [id], done: [id], label: `${c.name} 코스 지도` })}</div>
     <p class="cap muted">출발 ${esc(c.start)} → 해산 ${esc(c.end)}${c.turn ? ` · ${esc(c.turn)}에서 돌아옴` : ''} · ${c.by === 'me' ? '내가 만든 코스' : '다른 길잡이가 만든 코스'}</p>
     ${open.length ? `<div class="h3">이 코스로 열린 회차</div><div class="stack g8">${open.map(s => `<button type="button" class="opt" onclick="closeSheet(true);nav('#/session/${s.id}')"><span class="stack g4 grow"><span class="time">${fmtWhen(s)}</span><span class="cap muted">${seatsText(s)}</span></span>${icon('fwd')}</button>`).join('')}</div>`
@@ -729,8 +729,8 @@ function step2Reason() {
 }
 function step3Reason() {
   if (H.d === null) return '날짜를 골라 주세요';
-  if (!/^\d{2}:\d{2}$/.test(H.t)) return '출발 시각을 넣어 주세요';
-  if (!/^\d{2}:\d{2}$/.test(H.e)) return '해산 시각을 넣어 주세요';
+  if (!/^\d{2}:\d{2}$/.test(H.t)) return '출발 시각을 골라 주세요';
+  if (!/^\d{2}:\d{2}$/.test(H.e)) return '해산 시각을 골라 주세요';
   if (toMin(H.e) <= toMin(H.t)) return '해산은 출발보다 늦어야 해요';
   return '';
 }
@@ -742,7 +742,7 @@ function kmBlur() {
   document.getElementById('hkbox').classList.toggle('err', bad);
   document.getElementById('hk').setAttribute('aria-invalid', String(bad));
   const m = document.getElementById('hkmsg'); m.className = bad ? 'msg' : 'hint';
-  m.innerHTML = bad ? `${icon('alert', 's')}0보다 크고 50 이하인 숫자로 넣어 주세요 (예: 3.2)` : '실제 앱에서는 지도에서 지점을 찍으면 거리가 계산돼요.';
+  m.innerHTML = bad ? `${icon('alert', 's')}거리는 50km까지, 0보다 큰 숫자로 넣어 주세요 (예: 3.2)` : '실제 앱에서는 지도에서 지점을 찍으면 거리가 계산돼요.';
 }
 function syncStep3() {
   const r = step3Reason(); syncCta('cta3', r, '미리보기');
@@ -753,9 +753,9 @@ function syncStep3() {
 }
 // 시각 입력: 24시간 · 분 10분 단위 (기기 언어와 관계없이 "19:30")
 const up10 = t => addMin(t, (10 - Number(t.slice(3)) % 10) % 10);
-// 해산 제안: 출발 + 예상 완주시간을 10분 단위로 올림, 자정을 넘기지 않는다(23:50까지)
+// 해산 제안: 출발 + 예상 완주 시간을 10분 단위로 올림, 자정을 넘기지 않는다(23:50까지)
 function suggestEnd(t, min) { const raw = toMin(t) + min; return raw > 23 * 60 + 50 ? '23:50' : up10(addMin(t, min)); }
-const endHint = (t, min) => toMin(t) + min > 23 * 60 + 50 ? `예상 완주시간 ${min}분이에요. 해산은 자정 전으로 제안했어요.` : `예상 완주시간 ${min}분이라 해산 시각을 제안했어요. 바꿔도 돼요.`;
+const endHint = (t, min) => toMin(t) + min > 23 * 60 + 50 ? `예상 완주 시간 ${min}분이에요. 해산은 자정 전으로 제안했어요.` : `예상 완주 시간 ${min}분이라 해산 시각을 제안했어요. 바꿔도 돼요.`;
 const expMin = () => { const c = draftCourse(); return c && routeOf(c).m ? minOf(c) : 40; };
 // 10분 단위가 아닌 저장값은 보여 주되, 다른 값을 고르면 목록에서 뺀다
 function pruneMin(id) { const m = document.getElementById(id + 'm'); if (!m) return; [...m.options].forEach(o => { if (Number(o.value) % 10 && !o.selected) o.remove(); }); }
@@ -791,9 +791,9 @@ function viewHostNew(step) {
   if (!S.verified && step === 0) {
     return `<div class="screen">${topbar('회차 열기', { backTo: "nav('#/find')" })}
       <div class="pad stack g24" style="flex:1;justify-content:center"><div class="okicon">${icon('shield')}</div>
-        <div><h2 class="h1">회차를 열려면 본인인증이 필요해요</h2><p class="body muted mt12">처음 보는 사람들과 야외에서 같이 걷는 모임이라, 여는 사람은 확인된 사람이어야 해요. 인증 정보는 동행자에게 보이지 않아요.</p></div>
+        <div><h2 class="h1">회차를 열려면 본인인증이 필요해요</h2><p class="body muted mt12">처음 보는 사람들과 야외에서 같이 운동하는 모임이라, 모임을 여는 사람은 본인인증이 필요해요. 인증 정보는 동행자에게 보이지 않아요.</p></div>
         <div class="card"><div class="body">인증하면 이 회차의 길잡이가 돼요. 코스·시각·정원을 정하고, 당일에 출발과 해산을 눌러요.</div></div></div>
-      <div class="sticky-cta"><div class="stack g12"><button type="button" class="btn primary block" onclick="S.verified=true;save();nav(H.course?'#/host/new/3':'#/host/new/1');announce('본인인증이 끝났어요 (프로토타입)')">본인인증 하기</button><span class="cap muted center">프로토타입: 누르면 인증이 끝난 것으로 진행해요</span></div></div></div>`;
+      <div class="sticky-cta"><div class="stack g12"><button type="button" class="btn primary block" onclick="S.verified=true;save();nav(H.course?'#/host/new/3':'#/host/new/1');announce('본인인증이 끝났어요 (프로토타입)')">본인인증하기</button><span class="cap muted center">프로토타입: 누르면 인증이 끝난 것으로 진행해요</span></div></div></div>`;
   }
   if (step === 0) step = 1;
   const fixed = hostStepGuard(step);
@@ -815,9 +815,9 @@ function viewHostNew(step) {
     return `<div class="screen">${head}<div class="pad stack g16 mt24"><h2 class="h2">어느 코스로 갈까요?</h2>
       ${rec.length ? `<p class="cap muted">${myGu()}에 다른 길잡이가 만든 ${actLabel(H.act)} 코스가 있어요. 그대로 써도 돼요.</p>
         <div class="stack g8">${rec.map(c => `<button type="button" class="opt" data-fk="ecourse-${c.id}" aria-pressed="${H.courseMode === 'pick' && H.course === c.id}" onclick="H.courseMode='pick';H.course='${c.id}';H.e='';H.eEdited=false;render()">
-          <span class="thumb">${thumbSVG(c, S.done.includes(c.id))}</span><span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap muted">${kmOf(c)}km · 예상 완주시간 ${minOf(c)}분</span><span class="cap muted">${esc(c.start)}</span></span></button>`).join('')}</div>`
-      : `<p class="cap muted">${myGu()}에 아직 ${actLabel(H.act)} 코스가 없어요. 새로 그려 주세요.</p>`}
-      <button type="button" class="opt" data-fk="enew" aria-pressed="${H.courseMode === 'new'}" onclick="H.courseMode='new';H.course=null;H.e='';H.eEdited=false;render()"><span class="check ${H.courseMode === 'new' ? 'on' : ''}">${H.courseMode === 'new' ? icon('check', 's') : ''}</span><span class="h4">새로 그리기</span></button>
+          <span class="thumb">${thumbSVG(c, S.done.includes(c.id))}</span><span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap muted">${kmOf(c)}km · 예상 완주 시간 ${minOf(c)}분</span><span class="cap muted">${esc(c.start)}</span></span></button>`).join('')}</div>`
+      : `<p class="cap muted">${myGu()}에 아직 ${actLabel(H.act)} 코스가 없어요. 새로 만들어 주세요.</p>`}
+      <button type="button" class="opt" data-fk="enew" aria-pressed="${H.courseMode === 'new'}" onclick="H.courseMode='new';H.course=null;H.e='';H.eEdited=false;render()"><span class="check ${H.courseMode === 'new' ? 'on' : ''}">${H.courseMode === 'new' ? icon('check', 's') : ''}</span><span class="h4">새로 만들기</span></button>
       ${H.courseMode === 'new' ? `<div class="stack g12">
         <div class="field"><label for="hs">출발 지점</label><div class="box"><input id="hs" value="${esc(H.start)}" placeholder="예: 망원나들목" autocomplete="off" oninput="onStep2Input('start',this.value)"></div></div>
         <div class="field"><label for="he">해산 지점</label><div class="box"><input id="he" value="${esc(H.end)}" placeholder="예: 양화대교 북단" autocomplete="off" oninput="onStep2Input('end',this.value)"></div></div>
@@ -831,12 +831,12 @@ function viewHostNew(step) {
     const reason = step3Reason(); const badEnd = reason === '해산은 출발보다 늦어야 해요';
     return `<div class="screen">${head}<div class="pad stack g16 mt24"><h2 class="h2">언제, 몇 명과 갈까요?</h2>
       <div class="field"><span class="label" id="dlab">날짜</span><div class="strip fit" style="padding:0" role="group" aria-labelledby="dlab">${Array.from({ length: 7 }, (_, i) => { const x = dateOf(i);
-        return `<button type="button" class="day ${i === 0 ? 'today' : ''}" data-fk="eday-${i}" aria-pressed="${H.d === i}" aria-label="${fmtDay(i)}" onclick="H.d=${i};render()"><span class="w">${WD[x.getDay()]}</span><span class="d">${x.getDate()}</span></button>`; }).join('')}</div>${H.d !== null ? `<span class="cap">${fmtDay(H.d)}</span>` : ''}</div>
+        return `<button type="button" class="day ${i === 0 ? 'today' : ''}" data-fk="eday-${i}" aria-pressed="${H.d === i}"${i === 0 ? ' aria-current="date"' : ''} aria-label="${fmtDay(i)}" onclick="H.d=${i};render()"><span class="w">${WD[x.getDay()]}</span><span class="d">${x.getDate()}</span></button>`; }).join('')}</div>${H.d !== null ? `<span class="cap">${fmtDay(H.d)}</span>` : ''}</div>
       <div class="row g12 top"><div class="field grow" role="group" aria-labelledby="htlab"><span class="label" id="htlab">출발</span><div class="box tsel">${timeSel('ht', H.t, '출발', `onchange="onStartTime(selTime('ht'))"`)}</div></div>
         <div class="field grow" role="group" aria-labelledby="he2lab"><span class="label" id="he2lab">해산</span><div class="box tsel ${badEnd ? 'err' : ''}" id="he2box">${timeSel('he2', H.e, '해산', `aria-invalid="${badEnd}" aria-describedby="he2msg" onchange="onEndTime(selTime('he2'))"`)}</div></div></div>
       <span class="errline" id="he2msg" role="alert" ${badEnd ? '' : 'hidden'}>${icon('alert', 's')}해산은 출발보다 늦어야 해요</span>
       <p class="cap muted" id="he2hint">${endHint(H.t, min)}</p>
-      <div class="field"><label for="hc">정원</label><div class="box"><input id="hc" type="number" min="4" max="12" value="${H.cap}" onchange="H.cap=Math.min(12,Math.max(4,Number(this.value)||8));this.value=H.cap"><span class="cap muted">4~12명</span></div><span class="hint">가장 느린 사람에 맞춰 한 사람이 챙길 수 있는 크기예요.</span></div></div>
+      <div class="field"><label for="hc">정원</label><div class="box"><input id="hc" type="number" min="4" max="12" value="${H.cap}" onchange="H.cap=Math.min(12,Math.max(4,Number(this.value)||8));this.value=H.cap"><span class="cap muted">4~12명</span></div><span class="hint">길잡이 한 명이 가장 느린 사람까지 챙길 수 있는 인원이에요.</span></div></div>
       <div class="sticky-cta"><button type="button" id="cta3" class="btn primary block" ${reason ? 'disabled' : ''} onclick="nav('#/host/new/4')">${reason || '미리보기'}</button></div></div>`;
   }
   if (step === 4) {
@@ -845,13 +845,13 @@ function viewHostNew(step) {
     return `<div class="screen">${head}<div class="pad stack g16 mt24"><h2 class="h2">동행자에게 이렇게 보여요</h2>
       <div class="card"><div class="row g8" style="flex-wrap:wrap">${actChip(H.act)}${plainChip(D.levels[c.level])}${plainChip(myGu())}</div>
         <div class="time">${fmtDay(H.d)} ${H.t} → ${H.e}</div><div class="h3">${esc(c.name)}</div>
-        <div class="cap muted row g8">${icon('shield', 's')}<span>본인인증 길잡이 · 0/${H.cap}명 신청중</span></div>
+        <div class="cap muted row g8">${icon('shield', 's')}<span>인증한 길잡이 · 0/${H.cap}명 신청 중</span></div>
         <div class="divider"></div><div class="num-l">${km}km</div>
         <div class="route-track" aria-hidden="true"><span class="dot"></span><span class="line"></span><span class="dot end"></span></div>
         <div class="row between top"><div><div class="time">${H.t}</div><div class="cap muted">출발 · ${esc(c.start)}</div></div><div style="text-align:right"><div class="time">${H.e}</div><div class="cap muted">해산 · ${esc(c.end)}</div></div></div></div>
       <div class="card"><div class="h3">열면 이렇게 돼요</div><ul class="stack g8 body">
         <li>${myGu()} 찾기 목록에 바로 올라가요</li><li>회차 대화방이 열리고, 신청한 동행자가 들어와요</li>
-        <li>동행자 인원은 숫자로만 보여요</li><li>출발 전까지 언제든 취소할 수 있어요</li><li>출발 15분 뒤까지 길잡이 체크인이 없으면 자동 취소돼요</li></ul></div></div>
+        <li>동행자 인원은 숫자로만 보여요</li><li>출발 전까지 언제든 취소할 수 있어요</li></ul></div></div>
       <div class="sticky-cta"><button type="button" class="btn primary block" onclick="createSession()">회차 열기</button></div></div>`;
   }
   return notFound();
@@ -885,7 +885,7 @@ function viewMe() {
   const mine = sessions().filter(s => isApplied(s.id) || isMine(s)).sort((a, b) => a.d - b.d || a.t.localeCompare(b.t));
   return `<div class="screen">${topbar('나', { right: bellBtn() })}<div class="pad stack g16 mt8">
     <div class="card"><div class="row g16">${pi(P.icon, 64, '내 프로필 아이콘')}<div class="grow"><div class="h2">${esc(P.nick)}</div>
-      <div class="cap muted">${esc(P.gu)} · 관심 ${P.acts.length ? P.acts.map(actLabel).join(', ') : '없음'}</div></div></div>
+      <div class="cap muted">${esc(P.gu)} · 관심 활동 ${P.acts.length ? P.acts.map(a => `<span class="nowrap">${actLabel(a)}</span>`).join(', ') : '없음'}</div></div></div>
       <button type="button" class="btn outline" onclick="PD=null;nav('#/me/edit')">프로필 편집</button>
       <p class="small muted">아이콘과 닉네임은 회차 대화방에서만 보여요.</p></div>
     <div class="card" style="gap:var(--s2)"><div class="h3">내 회차</div>${mine.length ? `<ul>${mine.map(s => { const c = course(s.course);
@@ -955,7 +955,7 @@ function viewSettings() {
  * ================================================================ */
 function guSheet() {
   const cur = myGu();
-  openSheet(`<div><div class="h2">내 동네</div><p class="cap muted mt8">찾기 목록의 기준 동네예요. 프로필 편집의 '내 동네'와 같은 값이에요.</p></div>
+  openSheet(`<div><div class="h2">내 동네</div><p class="cap muted mt8">찾기 목록의 기준 동네예요. 프로필 편집의 '내 동네'와 같이 바뀌어요.</p></div>
     <div class="stack g8" role="group" aria-label="동네 선택">${D.gus.map(g => `<button type="button" class="opt" aria-pressed="${cur === g}" onclick="setGu('${g}')"><span class="h4 grow">${g}</span>${cur === g ? icon('check') : ''}</button>`).join('')}</div>
     <button type="button" class="btn outline block" onclick="closeSheet()">닫기</button>`, { label: '내 동네 바꾸기' });
 }
@@ -976,7 +976,7 @@ function notis() {
   sessions().filter(s => isApplied(s.id) || isMine(s)).forEach(s => {
     const c = course(s.course); const mine = isMine(s);
     if (isCancelled(s.id)) {
-      if (!mine) out.push({ id: 'x-' + s.id, kind: 'cancel', at: hm(NOW), title: '회차가 취소됐어요', parts: [c.name, fmtWhen(s)], note: '기기 캘린더에 넣었다면 지워 주세요.', href: `#/session/${s.id}` });
+      if (!mine) out.push({ id: 'x-' + s.id, kind: 'cancel', at: hm(NOW), title: '회차 취소 알림', parts: [c.name, fmtWhen(s)], note: '기기 캘린더에 넣었다면 지워 주세요.', href: `#/session/${s.id}` });
       return;
     }
     if (s.d === 0 && toMin(s.t) - 60 <= nowMin && S.hostStage[s.id] !== 'ended') {
@@ -1039,8 +1039,8 @@ function searchResults() {
     return `<div class="pad mt24"><div class="empty"><div class="h3">‘${esc(searchQ.trim())}’에 맞는 회차와 코스가 없어요</div>
       <p class="body muted">코스 이름, 출발 지점(예: 망원나들목), 활동(산책·조깅·러닝·라이트 바이크)으로 찾아보세요.</p></div></div>`;
   }
-  return `${ss.length ? `<div class="datehead">열린 회차 ${ss.length}</div><div class="pad stack g12">${ss.map(sessionCard).join('')}</div>` : ''}
-    ${cs.length ? `<div class="datehead">코스 ${cs.length}</div><div class="pad"><ul>${cs.map(c => { const d = S.done.includes(c.id); const n = openSessionsOf(c.id).length;
+  return `${ss.length ? `<div class="datehead">열린 회차 ${ss.length}개</div><div class="pad stack g12">${ss.map(sessionCard).join('')}</div>` : ''}
+    ${cs.length ? `<div class="datehead">코스 ${cs.length}개</div><div class="pad"><ul>${cs.map(c => { const d = S.done.includes(c.id); const n = openSessionsOf(c.id).length;
       return `<li><button type="button" class="list-row" onclick="courseSheet('${c.id}')"><span class="thumb">${thumbSVG(c, d)}</span>
         <span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap muted meta">${actDot(c.act)}${segs([actLabel(c.act), `${kmOf(c)}km`, c.gu !== myGu() ? c.gu : '', d ? '완주' : n ? `열린 회차 ${n}` : ''])}</span></span>${icon('fwd', 'muted')}</button></li>`; }).join('')}</ul></div>` : ''}`;
 }
@@ -1078,7 +1078,7 @@ function viewChats() {
 
 function notFound() {
   return `<div class="screen">${topbar('찾을 수 없어요', { backTo: "nav('#/find')" })}<div class="pad mt24"><div class="empty"><div class="h3">이 화면을 찾을 수 없어요</div>
-    <p class="body muted">회차가 취소됐거나 주소가 잘못됐을 수 있어요.</p><button type="button" class="btn secondary" onclick="nav('#/find')">찾기로 가기</button></div></div></div>`;
+    <p class="body muted">회차가 취소됐거나 주소가 잘못됐을 수 있어요.</p><button type="button" class="btn secondary" onclick="nav('#/find')">모임 찾기</button></div></div></div>`;
 }
 
 /* 데모 패널 */

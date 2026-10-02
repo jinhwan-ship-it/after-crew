@@ -36,6 +36,7 @@ jobs:
           files="app/*.js app/*.css app/*.html app/data/*.js"
           if grep -n "—" $files; then echo "::error::em dash가 있습니다"; exit 1; fi
           if grep -nE "외로움|만남|인연|설렘|말없이" $files; then echo "::error::금지어가 있습니다"; exit 1; fi
+          if grep -n "오늘" $files; then echo "::error::'오늘'이 있습니다(MANUAL v1.7 §11, 날짜는 절대 표기)"; exit 1; fi
 
       - name: 흐름 검사
         run: node qa/flow-check.js

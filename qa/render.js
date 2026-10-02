@@ -34,6 +34,30 @@ const report = [];
   }
   await page.waitForTimeout(500);
 
+  // 글자 여백 침범: 버튼 · 칩 안 내용(글자 · 아이콘)이 좌우 패딩 안쪽 선을 넘은 폭. scrollWidth는 패딩까지만 들어가면 못 잡는다
+  // (r8 독립 검증: 360 바이크 캘린더 버튼 5px). 잘라 내는 자식(overflow ≠ visible, 말줄임)은 그 상자만, 절대 배치 장식은 뺀다
+  const TIGHT = () => {
+    const vis = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
+    return [...document.querySelectorAll('#phone :is(.btn,.chip,.textbtn,.locbtn,.status-pill,.tabs button)')].filter(vis).map(el => {
+      const cs = getComputedStyle(el), r = el.getBoundingClientRect();
+      const L = r.left + el.clientLeft + parseFloat(cs.paddingLeft), R = r.left + el.clientLeft + el.clientWidth - parseFloat(cs.paddingRight);
+      let x0 = Infinity, x1 = -Infinity;
+      const add = rs => { for (const q of rs) if (q.width > 0 && q.height > 0) { x0 = Math.min(x0, q.left); x1 = Math.max(x1, q.right); } };
+      const walk = n => { for (const c of n.childNodes) {
+        if (c.nodeType === 3) { const g = document.createRange(); g.selectNodeContents(c); add(g.getClientRects()); }
+        else if (c.nodeType === 1) { const k = getComputedStyle(c); if (k.display === 'none' || k.position === 'absolute' || k.position === 'fixed') continue; if (k.overflowX !== 'visible' || c instanceof SVGElement) add([c.getBoundingClientRect()]); else walk(c); }
+      } };
+      walk(el);
+      return [el, x1 < x0 ? 0 : Math.max(L - x0, x1 - R)];
+    }).filter(([, d]) => d > 0.5).map(([el, d]) => `${(el.getAttribute('aria-label') || el.textContent).trim().slice(0, 12)} +${d.toFixed(1)}`);
+  };
+  // 숫자 + 단위 · 시각이 두 줄로 갈라짐(DESIGN 7칸 "숫자만 다음 줄로" DON'T, r8 360 "4.9k / m"): 인라인은 조각 수, 블록은 높이 > 줄 높이 1.5배
+  const SPLIT = () => [...document.querySelectorAll('#phone :is(.num-l,.hero-num,.time)')].filter(el => el.offsetWidth).filter(el => {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'inline') return el.getClientRects().length > 1;
+    const lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.4;
+    return el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) > lh * 1.5;
+  }).map(el => el.textContent.trim().slice(0, 16));
   const go = async h => { await page.evaluate(x => { location.hash = x; }, h); await page.waitForTimeout(280); };
   const ev = async (fn, arg) => { await page.evaluate(fn, arg); await page.waitForTimeout(280); };
   async function shot(id, { wait = 0 } = {}) {
@@ -66,6 +90,7 @@ const report = [];
       const h1 = view.querySelector('h1');
       return { sw: view.scrollWidth, cw: view.clientWidth, dw: document.documentElement.scrollWidth, small, prim, accentUse, title: h1 ? h1.textContent.trim() : '' };
     });
+    m.tight = await page.evaluate(TIGHT); m.split = await page.evaluate(SPLIT);
     const file = `${ROUND}-390-${id}.png`;
     await page.screenshot({ path: path.join(OUT, file), clip: { x: 0, y: 0, width: 390, height: 844 } });
     report.push({ id, file, ...m });
@@ -133,24 +158,32 @@ const report = [];
   await ev(i => closeChatSheet(i), hid); await shot('Cp-close-chat-sheet');
   await ev(i => doCloseChat(i), hid); await go('#/session/' + hid + '/chat'); await shot('H-chat-closed');
   await go('#/nope'); await shot('X-notfound');
-  // 360
+  // 360 · 버튼이 가장 많은 회차 상세 상태(신청한 바이크 · 신청한 당일 · 내가 여는 미래 회차)도 잰다
   await page.setViewportSize({ width: 360, height: 780 });
-  const w360 = {};
-  for (const [id, h] of [['A-find', '#/find'], ['B-session', '#/session/s3'], ['D-map', '#/map'], ['H-chat', '#/session/s1/chat'], ['I-chats', '#/chats'], ['K-search', '#/search']]) {
-    if (id === 'H-chat') await ev(() => { if (!S.applied.includes('s1')) { S.applied.push('s1'); save(); } });
-    await go(h); await page.waitForTimeout(200);
+  const w360 = {}, t360 = {};
+  const apply = id => ev(i => { if (!S.applied.includes(i)) { S.applied.push(i); save(); } }, id);
+  for (const [id, h, setup] of [['A-find', '#/find'], ['B-session', '#/session/s3'],
+    ['B-session-bike-applied', '#/session/s3', () => apply('s3')], ['B-session-applied-today', '#/session/s1', () => apply('s1')],
+    ['B-session-mine', null, () => ev(() => { S.verified = true; H = newDraft(); H.act = 'walk'; H.courseMode = 'pick'; H.course = 'c1'; H.d = 2; H.e = suggestEnd(H.t, expMin()); save(); createSession(); closeSheet(true); })],
+    ['D-map', '#/map'], ['H-chat', '#/session/s1/chat', () => apply('s1')], ['I-chats', '#/chats'], ['K-search', '#/search']]) {
+    if (setup) await setup();
+    await go(h || '#/session/' + await page.evaluate(() => S.created[S.created.length - 1].id));
+    if (setup) await ev(() => render()); // 같은 주소면 hashchange가 없어 상태가 안 그려진다
+    await page.waitForTimeout(200);
     w360[id] = await page.evaluate(() => [document.documentElement.scrollWidth, document.getElementById('view').scrollWidth, document.getElementById('view').clientWidth].join('/'));
+    t360[id] = [...await page.evaluate(TIGHT), ...(await page.evaluate(SPLIT)).map(x => '갈라짐 ' + x)];
     await page.screenshot({ path: path.join(OUT, `${ROUND}-360-${id}.png`), clip: { x: 0, y: 0, width: 360, height: 780 } });
   }
   await browser.close();
 
   const L = [`# impeccable ${ROUND} · 390×844`, `글꼴: ${WEB ? '웹폰트(Google Fonts: Noto Sans KR · Archivo)' : FD ? 'FONT_DIR 로컬(@fontsource)' : '대체 글꼴(웹폰트 막음)'} · 44px 미만 = ::before 포함 터치 영역`, `page errors: ${errors.length}` + (errors.length ? '\n' + errors.map(e => '  - ' + e).join('\n') : ''),
-    `360 (doc/view/client): ${Object.entries(w360).map(([k, v]) => k + ' ' + v).join(' · ')}`, '',
-    '| 화면 | 가로 스크롤 | 주 버튼 | accent 요소 수 | h1 | 44px 미만 |', '|---|---|---|---|---|---|'];
+    `360 (doc/view/client): ${Object.entries(w360).map(([k, v]) => k + ' ' + v).join(' · ')}`,
+    `360 글자 여백 침범 · 숫자 갈라짐: ${Object.values(t360).every(v => !v.length) ? '0' : Object.entries(t360).filter(([, v]) => v.length).map(([k, v]) => k + ' ' + v.join(', ')).join(' · ')}`, '',
+    '| 화면 | 가로 스크롤 | 주 버튼 | accent 요소 수 | h1 | 44px 미만 | 글자 여백 침범 | 숫자 갈라짐 |', '|---|---|---|---|---|---|---|---|'];
   for (const r of report) {
     const hs = (r.sw > r.cw || r.dw > 390) ? `✗ ${r.sw}/${r.cw} doc ${r.dw}` : '○';
     const pb = r.prim.length <= 1 ? `${r.prim.length} ${r.prim.join('')}` : `✗ ${r.prim.length}: ${r.prim.join(' / ')}`;
-    L.push(`| ${r.id} | ${hs} | ${pb} | ${r.accentUse} | ${r.title || '✗'} | ${r.small.length ? r.small.join(', ') : '○'} |`);
+    L.push(`| ${r.id} | ${hs} | ${pb} | ${r.accentUse} | ${r.title || '✗'} | ${r.small.length ? r.small.join(', ') : '○'} | ${r.tight.length ? '✗ ' + r.tight.join(', ') : '○'} | ${r.split.length ? '✗ ' + r.split.join(', ') : '○'} |`);
   }
   fs.writeFileSync(path.join(__dirname, `${ROUND}-report.md`), L.join('\n') + '\n');
   console.log(L.join('\n'));

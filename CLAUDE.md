@@ -46,6 +46,7 @@ scripts/publish.sh      첫 push (bash scripts/publish.sh <저장소 주소>) ·
 qa/m5-report.md       M5 검수 결과 · 다시 만들기 순서
 qa/r5-report.md       r5 변경 · 검수 · Figma 반영
 qa/r6-report.md       r6 변경(하단 탭 4 · 상단 바 · 채팅 · 알림 · 검색) · 검수 · Figma 반영
+qa/r8-report.md       r8 변경(문구 리서치 승인분 · MANUAL v1.7 · "오늘" 제거) · 검수 · 독립 검증
 qa/r7-report.md       r7 변경(대화 입력 바: 문구 칩 줄바꿈 + 채우기 · 보내기 48 · 폰 폭 출렁임 막기 · 칩 터치 44) · 검수 · 독립 검증
 shots/                rN-390-<화면>.png
 ```
@@ -59,11 +60,12 @@ shots/                rN-390-<화면>.png
 - 주 버튼(`.btn.primary`, accent 채움)은 화면당 하나. 시트 안 확인은 보조(text 채움)
 - accent #FFB547은 주 버튼·선택 상태에만. 지도 코스·글자·아이콘에 쓰지 않는다
 - 완주 코스 = 활동색 4 (`--act-walk/jog/run/bike`), 미완주 = text-muted 점선. 활동은 색만으로 구분하지 않는다(이름 병기)
-- 날짜·시각은 항상 "9/30 (수) 19:00 → 19:30". 평일·주말·내일 같은 상대 표현 금지. 시각 입력에 `type=time` 금지(기기 언어에 따라 오전/오후로 보임)
+- 날짜·시각은 항상 "9/30 (수) 19:00 → 19:30". 오늘·내일·평일·주말 같은 상대 표현 금지(MANUAL v1.7 §11). 시각 입력에 `type=time` 금지(기기 언어에 따라 오전/오후로 보임)
 - 금지어: 외로움 · 만남 · 인연 · 설렘 · 말없이. em dash(—) 0
-- 사람(아이콘·닉네임)은 회차 대화방과 나 화면에만. 카드·목록의 인원은 "3/6명 신청중" 숫자만. 채팅 목록의 보낸 사람은 역할만. 1:1 DM 없음
+- 사람(아이콘·닉네임)은 회차 대화방과 나 화면에만. 카드·목록의 인원은 "3/6명 신청 중" 숫자만. 채팅 목록의 보낸 사람은 역할만. 1:1 DM 없음
 - 새 소식 표시(수 배지·알림 점)는 `text` 색. accent 아님. 알림 제목에 상대 시간 금지
-- 메타 문구는 짧게: "예상 완주시간 45분", "5/8명 신청중"
+- 메타 문구는 짧게: "예상 완주 시간 45분", "5/8명 신청 중"(MANUAL v1.7 띄어쓰기)
+- 말투: 화면 문장은 해요체, 같은 동작·공간은 한 이름(캘린더 = "내 캘린더에 추가", 찾기 = "모임 찾기"), 시트의 나가는 버튼은 "닫기". 초안 전체는 research/copy-benchmark.md R1~R12
 - 지도가 보이는 곳엔 "© OpenStreetMap contributors"
 - 터치 44px, 가로 스크롤 0 (360에서도), 입력 검증은 그 자리에서(전체 다시 그리기 금지)
 - DESIGN.md 밖 값이 필요하면 먼저 DESIGN.md에 추가(값은 헤드 확인), 그다음 코드
@@ -72,9 +74,10 @@ shots/                rN-390-<화면>.png
 
 ```
 npm i playwright   # 처음 한 번 (Chromium: npx playwright install chromium) · 설치 전이면 python playwright 드라이버를 연결: NODE_PATH=<폴더>/nm (nm/playwright → site-packages/playwright/driver/package)
-WEBFONT=1 node qa/render.js r8   # shots/r8-*.png + qa/r8-report.md · WEBFONT=1이면 실제 글꼴(r7부터), 44px 판정은 ::before 포함 터치 영역
+WEBFONT=1 node qa/render.js r9   # shots/r9-*.png + qa/r9-report.md · WEBFONT=1이면 실제 글꼴(r7부터), 44px 판정은 ::before 포함 터치 영역
 node qa/flow-check.js       # 마지막 줄 PASS (실패하면 FAIL <항목>과 종료 코드 1)
 grep -c "—" app/*.js app/*.css app/*.html app/data/content.js   # 0
+grep -c "오늘" app/*.js app/*.css app/*.html app/data/*.js       # 0 (MANUAL v1.7 §11, CI도 같은 검사)
 ```
 Figma 사본을 코드와 맞출 때(바뀐 화면만 다시 만들어도 된다):
 ```
@@ -96,7 +99,7 @@ BLOCKER 0 · MAJOR ≤2여야 라운드 통과. 라운드가 끝나면 서브에
 
 ## 6. 다음 할 일 (STATUS.md가 최신)
 
-1. 헤드가 Figma에서 텍스트·워딩을 고치는 중(r6 리뷰). 끝났다고 하면 `get_design_context`로 읽어 코드에 반영 → r8 검수. **그 전에는 Figma 프레임을 다시 만들지 않는다**(같은 이름 프레임 교체라 헤드 수정이 지워진다). 남은 MINOR 후보: 찾기 필터 칩 줄 390 웹폰트 3px 넘침(텍스트 수정 뒤 다시 재기, 헤드 결정) · 선택창 기본 화살표 크기(3b chevron 20) · 360 좌우 여백(DESIGN 8칸 16) · 범례 점 모양
+1. 문구 리서치 r8 적용 끝(research/copy-benchmark.md 7절). 열린 질문 Q1 · Q5 · Q6 · 보드 43~45는 헤드 답 대기. 헤드가 Figma에서 텍스트를 더 고치면 `get_design_context`로 읽어 코드에 반영 → r9 검수. **그 전에는 Figma 프레임을 다시 만들지 않는다**(같은 이름 프레임 교체라 헤드 수정이 지워진다). 남은 MINOR 후보: 찾기 필터 칩 줄 390 웹폰트 3px 넘침(텍스트 수정 뒤 다시 재기, 헤드 결정) · 선택창 기본 화살표 크기(3b chevron 20) · 360 좌우 여백(DESIGN 8칸 16) · 범례 점 모양
 2. 코드가 바뀌면 바뀐 화면만 Figma에 다시 만들기(5절). r7 대화 입력 바(H 화면들)를 다시 만들기 전에 `qa/figma-export.js`가 줄바꿈 + 채우기 칩(`.composer .strip`, flex-wrap + flex-grow)을 줄마다 채움으로 내보내게 고친다(지금은 hug로 나가 왼쪽 정렬처럼 보임). 내보낸 JSON을 이전 것과 비교해 바뀐 화면만, 상단 바만 바뀌면 `node figma/make-topbar-patch.js <화면id> <섹션id>`. Figma: 파일 `9eNEAWAgW4rhZ4C1QPz0Hz` · 페이지 "App r4" `50:571` · 섹션 동행자 `55:589`(끝에 I-chats · J-notifications · K-search · K-search-results · A1-gu-sheet) · 길잡이 `55:590`(끝에 A-find-host-pinned) · 나 `55:591` · App 컴포넌트 `52:571`(Icon 52:644 22종 · ProfileIcon 52:718 · Toggle 52:724 · Chip 52:738 · Badge 52:756 · StatusBar 52:778 · MapBase 53:586 · TabBar 53:635 4탭 + 채팅 수 배지) · Button `5:39`(기존, 수정하지 않는다) · 변수 color/* 15 · lo-fi 페이지 "Lo-fi r6" `149:571`(섹션 1 동행자 `149:572` 13화면 · 2 탭 보조 `149:573` 6 · 3 길잡이 `149:574` 10 · 4 나 `149:575` 3 + 범례). 원본은 코드. Figma에서 고친 것은 `get_design_context`로 읽어 코드에 반영
 3. 게이트마다 MANUAL·DESIGN·STATUS·flows를 claude.ai 프로젝트 문서 `after-crew/`에 동기화 (Cowork 세션에서)
 4. GitHub: 공개 저장소 + Pages. 첫 push는 헤드가 맥에서 `bash scripts/publish.sh <저장소 주소>` (README 마지막 절). 그 뒤로는 브랜치 → PR → Actions qa 통과 → main. push는 헤드 승인 뒤에만

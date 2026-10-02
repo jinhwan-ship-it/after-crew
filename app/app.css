@@ -104,7 +104,7 @@ ul{list-style:none}
 .dark .muted,.on-text .muted{color:var(--text-on-dark-muted)}
 .center{text-align:center}
 .num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
-.num-l{font-family:var(--font-num);font-weight:700;font-size:36px;line-height:1.1;letter-spacing:-0.02em}
+.num-l{font-family:var(--font-num);font-weight:700;font-size:36px;line-height:1.1;letter-spacing:-0.02em;white-space:nowrap}
 .time{font-family:var(--font-num);font-weight:700;font-size:14px;line-height:1.4;font-variant-numeric:tabular-nums}
 .time.l{font-size:16px}
 svg.ic{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
@@ -261,7 +261,7 @@ span.chip.sm::before{display:none}
 .dark .progress{background:rgba(255,255,255,.18)}
 .dark .progress i{background:var(--surface)}
 .status-pill{display:inline-flex;align-items:center;gap:var(--s2);height:32px;padding:0 var(--s3);border-radius:var(--r-pill);background:rgba(255,255,255,.12);font-size:14px;font-weight:500;white-space:nowrap}
-.hero-num{font-family:var(--font-num);font-weight:700;font-size:36px;line-height:1;letter-spacing:-0.02em}
+.hero-num{font-family:var(--font-num);font-weight:700;font-size:36px;line-height:1;letter-spacing:-0.02em;white-space:nowrap}
 .count-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3)}
 .count-grid .c{background:var(--surface);border-radius:var(--r-media);padding:var(--s4);display:flex;flex-direction:column;gap:var(--s1)}
 .count-grid .c b{font-family:var(--font-num);font-size:36px;font-weight:700;line-height:1.1}
