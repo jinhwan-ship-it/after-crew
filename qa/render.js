@@ -1,4 +1,4 @@
-// impeccable · 390×844 렌더 + 측정 · node qa/render.js r4   (FONT_DIR=<@fontsource node_modules> 있으면 로컬 글꼴 주입)
+// impeccable · 390×844 렌더 + 측정 · node qa/render.js r8   (FONT_DIR=<@fontsource node_modules> 있으면 로컬 글꼴 주입, WEBFONT=1이면 Google Fonts)
 const { chromium } = require('playwright');
 const path = require('path');
 const fs = require('fs');
@@ -15,11 +15,16 @@ const report = [];
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   page.on('console', m => { if (m.type() === 'error' && !/ERR_|net::/.test(m.text())) errors.push(m.text()); });
-  await page.route('**/fonts.googleapis.com/**', r => r.abort());
-  await page.route('**/fonts.gstatic.com/**', r => r.abort());
+  // WEBFONT=1: Google Fonts를 그대로 받아 실제 글꼴(Noto Sans KR · Archivo)로 렌더. 아니면 막고 FONT_DIR 또는 대체 글꼴
+  const WEB = process.env.WEBFONT === '1';
+  if (!WEB) {
+    await page.route('**/fonts.googleapis.com/**', r => r.abort());
+    await page.route('**/fonts.gstatic.com/**', r => r.abort());
+  }
   await page.goto(FILE);
   await page.evaluate(() => localStorage.clear());
   await page.reload();
+  if (WEB) await page.evaluate(() => document.fonts.ready);
   const FD = process.env.FONT_DIR || '';
   if (FD) {
     const ff = (fam, file, w) => `@font-face{font-family:"${fam}";font-weight:${w};src:url("file://${FD}/${file}") format("woff2")}`;
@@ -37,8 +42,25 @@ const report = [];
       const phone = document.getElementById('phone'), view = document.getElementById('view');
       const vis = el => { const r = el.getBoundingClientRect(); const s = getComputedStyle(el); return r.width > 0 && r.height > 0 && s.visibility !== 'hidden' && s.display !== 'none'; };
       const els = [...phone.querySelectorAll('button,a,input,select,[role="button"]')].filter(vis);
-      const small = els.filter(el => { if (el.matches('input,select,.rt-hit')) return false; const r = el.getBoundingClientRect(); const hitH = el.matches('.chip,.toggle') ? 44 : r.height; return hitH < 44 || r.width < 44; })
-        .map(el => `${(el.className && el.className.baseVal === undefined ? el.className : el.tagName)}:${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 10)} ${Math.round(el.getBoundingClientRect().width)}×${Math.round(el.getBoundingClientRect().height)}`);
+      // 터치 영역 = 경계 상자 ∪ ::before 확장(패딩 상자 기준). 안쪽 줄(#view·시트 밖까지는 안 감)이 잘라 낸 만큼 뺀다.
+      // 가로 스크롤 줄은 세로만 자른다(스크롤 위치 때문에 일부만 보이는 칩은 작은 게 아님)
+      const hit = el => {
+        const r = el.getBoundingClientRect(); let [x0, y0, x1, y1] = [r.left, r.top, r.right, r.bottom];
+        const ps = getComputedStyle(el, '::before');
+        if (ps.content !== 'none' && ps.display !== 'none' && ps.position === 'absolute' && el.clientHeight) {
+          const px = r.left + el.clientLeft, py = r.top + el.clientTop;
+          x0 = Math.min(x0, px + parseFloat(ps.left)); y0 = Math.min(y0, py + parseFloat(ps.top));
+          x1 = Math.max(x1, px + el.clientWidth - parseFloat(ps.right)); y1 = Math.max(y1, py + el.clientHeight - parseFloat(ps.bottom));
+        }
+        for (let a = el.parentElement; a && a.id !== 'view' && a.id !== 'phone' && !a.classList.contains('sheet'); a = a.parentElement) {
+          const cs = getComputedStyle(a); const ar = a.getBoundingClientRect(); const ax = ar.left + a.clientLeft, ay = ar.top + a.clientTop;
+          if (cs.overflowY !== 'visible') { y0 = Math.max(y0, ay); y1 = Math.min(y1, ay + a.clientHeight); }
+          if (cs.overflowX === 'hidden' || cs.overflowX === 'clip') { x0 = Math.max(x0, ax); x1 = Math.min(x1, ax + a.clientWidth); }
+        }
+        return [Math.max(0, x1 - x0), Math.max(0, y1 - y0)];
+      };
+      const small = els.filter(el => !el.matches('input,select,.rt-hit')).map(el => [el, hit(el)]).filter(([, [w, h]]) => w < 44 || h < 44)
+        .map(([el, [w, h]]) => `${(el.className && el.className.baseVal === undefined ? el.className : el.tagName)}:${(el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 10)} ${Math.round(w)}×${Math.round(h)}`);
       const prim = [...phone.querySelectorAll('.btn.primary')].filter(vis).map(b => b.textContent.trim());
       const accentUse = [...phone.querySelectorAll('*')].filter(vis).filter(el => { const cs = getComputedStyle(el); return cs.backgroundColor === 'rgb(255, 181, 71)' || cs.color === 'rgb(255, 181, 71)' || cs.stroke === 'rgb(255, 181, 71)'; }).length;
       const h1 = view.querySelector('h1');
@@ -122,7 +144,7 @@ const report = [];
   }
   await browser.close();
 
-  const L = [`# impeccable ${ROUND} · 390×844`, `page errors: ${errors.length}` + (errors.length ? '\n' + errors.map(e => '  - ' + e).join('\n') : ''),
+  const L = [`# impeccable ${ROUND} · 390×844`, `글꼴: ${WEB ? '웹폰트(Google Fonts: Noto Sans KR · Archivo)' : FD ? 'FONT_DIR 로컬(@fontsource)' : '대체 글꼴(웹폰트 막음)'} · 44px 미만 = ::before 포함 터치 영역`, `page errors: ${errors.length}` + (errors.length ? '\n' + errors.map(e => '  - ' + e).join('\n') : ''),
     `360 (doc/view/client): ${Object.entries(w360).map(([k, v]) => k + ' ' + v).join(' · ')}`, '',
     '| 화면 | 가로 스크롤 | 주 버튼 | accent 요소 수 | h1 | 44px 미만 |', '|---|---|---|---|---|---|'];
   for (const r of report) {

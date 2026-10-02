@@ -51,7 +51,9 @@ ul{list-style:none}
 .demo h2{font-size:14px;font-weight:700;color:var(--text)}
 .demo button{border:1px solid var(--text-muted);border-radius:var(--r-pill);padding:var(--s2) var(--s4);font-size:14px;font-weight:500;color:var(--text);min-height:44px;text-align:left}
 .demo button:hover{background:var(--bg)}
-@media (max-width:760px){.desk{padding:0;gap:0}.phone{width:100%;height:100vh;height:100dvh;border-radius:0;border:0}.demo{display:none}}
+/* 폰 폭: 앱 틀이 손가락 따라 출렁이지 않게 (DESIGN 7칸 v1.5). 상단 바·입력 바는 #view 안 sticky라 #view도 none, 시트는 뒤 화면으로 안 넘기게 contain.
+   데스크톱은 모두 기본값: 폰 프레임이 창보다 길면 폰 위에서 굴려도 페이지가 내려가야 함 */
+@media (max-width:760px){html,body,#view{overscroll-behavior:none}.sheet{overscroll-behavior:contain}.desk{padding:0;gap:0}.phone{width:100%;height:100vh;height:100dvh;border-radius:0;border:0}.demo{display:none}}
 
 /* ===== 레이아웃 · 글자 ===== */
 .topbar{height:56px;flex:0 0 56px;display:flex;align-items:center;padding:0 var(--s3);gap:var(--s2);position:sticky;top:0;background:var(--bg);z-index:4}
@@ -122,10 +124,10 @@ svg.ic.s{width:16px;height:16px}
 
 /* ===== 필 계열 ===== */
 .chip{position:relative;display:inline-flex;align-items:center;gap:var(--s2);height:36px;padding:0 var(--s4);border-radius:var(--r-pill);border:1px solid var(--border);background:var(--surface);font-size:14px;font-weight:500;white-space:nowrap;transition:background-color var(--t),border-color var(--t)}
-.chip::before{content:"";position:absolute;inset:-4px 0}
+.chip::before{content:"";position:absolute;inset:calc(-1 * var(--s1) - 1px) -1px}   /* 터치 44: ::before는 경계 안쪽(패딩 상자) 기준이라 경계 1px만큼 더 → 34 + 10 */
 .chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--text)}
 .chip.sm{height:28px;padding:0 var(--s3)}
-.chip.sm::before{inset:-8px 0}
+.chip.sm::before{inset:calc(-1 * var(--s2) - 1px) -1px}
 span.chip.sm::before{display:none}
 .chip.static{cursor:default}
 .dot-act{width:8px;height:8px;border-radius:50%;background:var(--c,var(--text));flex:0 0 8px;display:inline-block}
@@ -155,9 +157,12 @@ span.chip.sm::before{display:none}
 .toggle[aria-checked="true"]::after{transform:translateX(18px)}
 
 /* 가로 줄 (날짜 스트립·칩 행) */
-.strip{display:flex;gap:var(--s2);overflow-x:auto;padding:0 var(--s5);scrollbar-width:none}
+.strip{display:flex;gap:var(--s2);overflow-x:auto;overflow-y:hidden;padding:0 var(--s5);scrollbar-width:none}   /* 세로 스크롤 없음: 칩 터치 영역이 넘쳐 줄이 세로로 3px 밀리던 것 */
 .strip::-webkit-scrollbar{display:none}
 .strip.chips .chip{padding:0 var(--s3)}
+/* 필터 칩 줄: 가로 스크롤 줄이 칩 터치 영역(위아래 4)을 잘라 36이던 것 → 줄 위아래에 4 여유, 같은 만큼 바깥 여백을 줄여 화면 모양은 그대로 (r7) */
+.strip.chips{padding-block:var(--s1);margin-bottom:calc(-1 * var(--s1))}
+.strip.chips.mt12{margin-top:var(--s2)}.strip.chips.mt16{margin-top:var(--s3)}
 .strip.fit{overflow:visible;gap:var(--s1)}.strip.fit .day{flex:1 1 0;min-width:0}
 .day{flex:0 0 44px;height:64px;border-radius:var(--r-field);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s1);border:1px solid transparent;transition:background-color var(--t)}
 .day .w{font-size:12px;font-weight:500;color:var(--text-muted)}
@@ -297,13 +302,14 @@ button.bubble{cursor:pointer}
 .msg.me .bubble{background:var(--text);color:var(--surface);border-top-left-radius:var(--r-media);border-top-right-radius:var(--r-check)}
 .msg.sys{justify-content:center;font-size:14px;color:var(--text-muted);text-align:center}
 .composer{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--border);padding:var(--s2) 0 var(--s3);display:flex;flex-direction:column;gap:var(--s2);z-index:3;margin-top:auto}
-.composer .strip{padding:0 var(--s5)}
+.composer .strip{padding:0 var(--s5);flex-wrap:wrap;overflow:visible}   /* 3d v1.5: 가로 스크롤 없이 줄바꿈, 줄마다 칩이 남는 폭을 나눠 입력 줄 좌우 끝에 맞춤 */
+.composer .strip .chip{flex:1 1 auto;justify-content:center}
 .composer .inrow{display:flex;gap:var(--s2);align-items:center;padding:0 var(--s5)}
 .composer .in{flex:1;height:48px;border-radius:var(--r-pill);border:1px solid var(--text-muted);background:var(--surface);display:flex;align-items:center;padding:0 var(--s4)}
 .composer .in:focus-within{border:2px solid var(--text);padding:0 15px}
 .composer input{flex:1;border:0;background:transparent;outline:none;min-width:0;font-size:16px}
 input::placeholder{color:var(--text-muted);opacity:1}
-.composer .send{width:44px;height:44px;border-radius:50%;background:var(--text);color:var(--surface);display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px}
+.composer .send{width:48px;height:48px;border-radius:50%;background:var(--text);color:var(--surface);display:inline-flex;align-items:center;justify-content:center;flex:0 0 48px}
 .composer .send[disabled]{opacity:.4;cursor:not-allowed}
 .composer .len{font-family:var(--font-num);font-size:12px;color:var(--text-muted)}
 

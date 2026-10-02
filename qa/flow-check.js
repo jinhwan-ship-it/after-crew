@@ -94,10 +94,25 @@ const { chromium } = require('playwright'); const path = require('path');
   R.searchResults = await p.evaluate(() => [document.querySelectorAll('#search-results .card').length, document.querySelectorAll('#search-results .list-row').length].join('/'));
   R.searchCountLive = await p.evaluate(() => [document.getElementById('search-count').textContent, document.getElementById('search-results').hasAttribute('aria-live')].join('/'));
   await p.fill('#search-in', '없는코스'); await p.waitForTimeout(150); R.searchNone = await p.evaluate(() => document.getElementById('search-results').innerText.includes('맞는 회차와 코스가 없어요'));
+  // 9 r7: 대화 입력 바 (DESIGN 3d v1.5) · 문구 칩은 가로 스크롤 없이 줄바꿈, 줄마다 입력 줄 좌우 끝까지 · 보내기 = 입력창 높이
+  //   overscroll (DESIGN 7칸): 폰 폭은 html · #view none + 시트 contain, 데스크톱 1440은 모두 기본값(폰 위에서 굴려도 페이지가 내려감)
+  const overscrollOf = pg => pg.evaluate(() => { const sh = document.querySelector('.sheet'); return [document.documentElement, document.getElementById('view'), sh].map(e => e ? getComputedStyle(e).overscrollBehaviorY : '시트 없음').join('/'); });
+  await go('#/session/s1/chat');
+  const cb = await p.evaluate(() => {
+    const r = q => document.querySelector(q).getBoundingClientRect(); const s = document.querySelector('.composer .strip'); const send = r('.composer .send'), inp = r('.composer .in');
+    const rows = {}; [...s.children].forEach(c => { const b = c.getBoundingClientRect(), k = Math.round(b.top); rows[k] = rows[k] ? [Math.min(rows[k][0], b.left), Math.max(rows[k][1], b.right)] : [b.left, b.right]; });
+    return { noScroll: s.scrollWidth <= s.clientWidth, rowsFill: Object.values(rows).every(([l, rt]) => Math.abs(l - inp.left) < 1 && Math.abs(rt - send.right) < 1),
+      sendEq: Math.abs(send.top - inp.top) < 1 && Math.abs(send.bottom - inp.bottom) < 1 };
+  });
+  R.quickNoScroll = cb.noScroll; R.quickRowsFill = cb.rowsFill; R.sendMatchesInput = cb.sendEq;
+  await p.evaluate(() => msgSheet('s1', 1)); await p.waitForTimeout(150); R.overscroll = await overscrollOf(p); await p.evaluate(() => closeSheet());
+  const dk = await b.newPage({ viewport: { width: 1440, height: 900 } }); dk.on('pageerror', e => errs.push('1440 ' + e)); await dk.route('**/fonts.g*/**', r => r.abort());
+  await dk.goto('file://' + path.resolve(__dirname, '../app/index.html')); await dk.evaluate(() => { S.applied = ['s1']; save(); location.hash = '#/session/s1/chat'; }); await dk.waitForTimeout(250);
+  await dk.evaluate(() => msgSheet('s1', 1)); await dk.waitForTimeout(150); R.overscrollDesk = await overscrollOf(dk); await dk.close();
   R.errors = errs;
   console.log(JSON.stringify(R, null, 1)); await b.close();
   // 판정 · 불리언은 true여야 통과(endOk만 false = 해산 시각이 맞으면 버튼이 풀림) · 값 항목은 아래 기대값과 같아야 통과
-  const EQ = { guardTo: '#/host/new/1', suggestedEnd: '20:30', startMovesEnd: '21:30', endTyped: '망원나들목', chatBadge: '4', chatRooms: 2, chatBadgeAfterRead: '1', notiRows: 1, tabCurrentOnRoot: '채팅', guChanged: '서대문구/서대문구/서대문구 모임', searchResults: '2/2', searchCountLive: '열린 회차 2개, 코스 2개/false',
+  const EQ = { guardTo: '#/host/new/1', suggestedEnd: '20:30', startMovesEnd: '21:30', endTyped: '망원나들목', chatBadge: '4', chatRooms: 2, chatBadgeAfterRead: '1', notiRows: 1, tabCurrentOnRoot: '채팅', guChanged: '서대문구/서대문구/서대문구 모임', searchResults: '2/2', searchCountLive: '열린 회차 2개, 코스 2개/false', overscroll: 'none/none/contain', overscrollDesk: 'auto/auto/auto',
     endErr: [true, '해산은 출발보다 늦어야 해요', true, 'true'], midnight: ['23:50', '22:30', true], kmErr: ['true', '거리를 숫자로 넣어 주세요'], nickErr: ['true', true] };
   const fails = [];
   for (const [k, v] of Object.entries(R)) {

@@ -18,7 +18,7 @@ npm install
 npx playwright install chromium
 npm run serve                 # http://localhost:5173 (app/)
 node qa/flow-check.js         # 마지막 줄 PASS, 하나라도 틀리면 FAIL과 종료 코드 1
-node qa/render.js r7          # shots/r7-*.png + qa/r7-report.md
+node qa/render.js r8          # shots/r8-*.png + qa/r8-report.md
 ```
 빌드 단계는 없다. `app/`의 HTML · CSS · JS가 그대로 배포된다(GitHub Pages, 저장소 루트 `index.html`이 `app/`으로 보낸다).
 

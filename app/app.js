@@ -693,7 +693,7 @@ function viewMap() {
     <div class="map full mt16">${mapView({ ids, done, fit, pxw: 390, pxh: 360, interactive: true, draw, label: `내 동네 지도. 완주한 코스 ${done.length}개. 코스를 누르면 자세히 볼 수 있어요` })}</div>
     <div class="pad mt16"><div class="h2">완주한 코스 ${done.length}개</div><div class="cap muted">순위도 경쟁도 없어요</div>
       <div class="legend mt12">${acts.map(a => `<span><i style="--c:var(--act-${a})"></i>${actLabel(a)}</span>`).join('')}<span><i class="dash"></i>아직 안 가본 코스</span></div>
-      <div class="strip chips mt16" style="padding:0" role="group" aria-label="코스 필터">${[['all', '전체'], ['done', '완주'], ['notyet', '아직']].map(([k, l]) => `<button type="button" class="chip" data-fk="mtab-${k}" aria-pressed="${mapTab === k}" onclick="mapTab='${k}';render()">${l}</button>`).join('')}</div>
+      <div class="strip chips mt16" style="padding-inline:0" role="group" aria-label="코스 필터">${[['all', '전체'], ['done', '완주'], ['notyet', '아직']].map(([k, l]) => `<button type="button" class="chip" data-fk="mtab-${k}" aria-pressed="${mapTab === k}" onclick="mapTab='${k}';render()">${l}</button>`).join('')}</div>
       <ul class="mt8">${list.map(c => { const d = done.includes(c.id); const n = openSessionsOf(c.id).length;
         return `<li><button type="button" class="list-row" onclick="courseSheet('${c.id}')"><span class="thumb">${thumbSVG(c, d)}</span>
           <span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap muted meta">${actDot(c.act)}${segs([actLabel(c.act), `${kmOf(c)}km`, c.gu !== myGu() ? c.gu : '', d ? '완주' : n ? `열린 회차 ${n}` : ''])}</span></span>${icon('fwd', 'muted')}</button></li>`; }).join('')}</ul>
