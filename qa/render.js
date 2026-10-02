@@ -53,6 +53,8 @@ const report = [];
   await go('#/find'); await shot('A-find');
   await ev(() => { findAct = 'run'; render(); }); await shot('A-find-run');
   await ev(() => { findAct = 'all'; }); await go('#/find/2'); await shot('A-find-empty');
+  await go('#/chats'); await shot('I-chats-empty');
+  await go('#/notifications'); await shot('J-noti-empty');
   // B 상세
   await go('#/session/s3'); await shot('B-session-bike');
   await ev(() => document.getElementById('view').scrollTo(0, 560)); await shot('B-session-bike-scroll');
@@ -67,6 +69,13 @@ const report = [];
   await ev(() => reportSheet('s1', 1)); await shot('F-report-msg');
   await ev(() => closeSheet());
   await go('#/find'); await shot('A-find-pinned');
+  await go('#/chats'); await shot('I-chats');
+  await go('#/notifications'); await shot('J-notifications');
+  await go('#/find'); await ev(() => guSheet()); await shot('A1-gu-sheet'); await ev(() => closeSheet());
+  await go('#/search'); await shot('K-search');
+  await page.fill('#search-in', '망원'); await page.waitForTimeout(250); await shot('K-search-results');
+  await page.fill('#search-in', '없는코스'); await page.waitForTimeout(250); await shot('K-search-none');
+  await ev(() => { searchQ = ''; });
   // C 당일
   await go('#/today/s1'); await shot('C-today-before');
   await ev(() => checkIn('s1')); await shot('C-today-going');
@@ -94,6 +103,7 @@ const report = [];
   await ev(() => createSession()); await page.waitForTimeout(300); await shot('E5-created');
   const hid = await page.evaluate(() => S.created[S.created.length - 1].id);
   await ev(() => closeSheet());
+  await go('#/find'); await shot('A-find-host-pinned');
   await go('#/session/' + hid + '/chat'); await shot('H-chat-host-empty');
   await go('#/host/today/' + hid); await ev(i => { hostSimCheck(i); hostSimCheck(i); }, hid); await shot('Cp-host-checked');
   await ev(i => hostStart(i), hid); await shot('Cp-host-going');
@@ -104,7 +114,7 @@ const report = [];
   // 360
   await page.setViewportSize({ width: 360, height: 780 });
   const w360 = {};
-  for (const [id, h] of [['A-find', '#/find'], ['B-session', '#/session/s3'], ['D-map', '#/map'], ['H-chat', '#/session/s1/chat']]) {
+  for (const [id, h] of [['A-find', '#/find'], ['B-session', '#/session/s3'], ['D-map', '#/map'], ['H-chat', '#/session/s1/chat'], ['I-chats', '#/chats'], ['K-search', '#/search']]) {
     if (id === 'H-chat') await ev(() => { if (!S.applied.includes('s1')) { S.applied.push('s1'); save(); } });
     await go(h); await page.waitForTimeout(200);
     w360[id] = await page.evaluate(() => [document.documentElement.scrollWidth, document.getElementById('view').scrollWidth, document.getElementById('view').clientWidth].join('/'));

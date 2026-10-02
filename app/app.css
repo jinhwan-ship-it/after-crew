@@ -43,8 +43,10 @@ ul{list-style:none}
 .screen.dark{background:var(--text);color:var(--surface)}
 .tabbar{flex:0 0 64px;height:64px;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:stretch}
 .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s1);font-size:12px;font-weight:500;color:var(--text-muted);min-height:44px}
-.tabbar button[aria-current="page"]{color:var(--text)}
+.tabbar button.on{color:var(--text)}
 .tabbar svg{width:24px;height:24px}
+.tabbar .ico{position:relative;display:inline-flex}
+.tabbar .count{position:absolute;top:-8px;left:14px}
 .demo{width:280px;background:var(--surface);border-radius:var(--r-media);padding:var(--s4);font-size:14px;line-height:1.5;color:var(--text-muted);display:flex;flex-direction:column;gap:var(--s3)}
 .demo h2{font-size:14px;font-weight:700;color:var(--text)}
 .demo button{border:1px solid var(--text-muted);border-radius:var(--r-pill);padding:var(--s2) var(--s4);font-size:14px;font-weight:500;color:var(--text);min-height:44px;text-align:left}
@@ -59,6 +61,25 @@ ul{list-style:none}
 .iconbtn{width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-pill);flex:0 0 44px}
 .iconbtn svg{width:24px;height:24px}
 .iconbtn:hover{background:var(--bg)}
+/* 탭 첫 화면 상단 바 (v1.4) */
+.topbar.root{gap:0}
+.locbtn{display:inline-flex;align-items:center;gap:var(--s1);height:44px;padding:0 var(--s3);border-radius:var(--r-pill);font-size:22px;font-weight:700;line-height:1.4;letter-spacing:-0.01em;white-space:nowrap;max-width:60%}
+.locbtn span{overflow:hidden;text-overflow:ellipsis}
+.locbtn svg.ic{width:20px;height:20px}
+.locbtn svg.ic:last-child{color:var(--text-muted)}
+.iconbtn.badged{position:relative}
+.dot-new{position:absolute;top:8px;right:8px;width:12px;height:12px;border-radius:50%;background:var(--text);border:2px solid var(--bg)}
+.dot-new.static{position:static;width:8px;height:8px;border:0;flex:0 0 8px;align-self:center}
+.topbar.search{padding-right:var(--s5)}
+.searchbox{flex:1;min-width:0;height:44px;border-radius:var(--r-pill);border:1px solid var(--text-muted);background:var(--surface);display:flex;align-items:center;gap:var(--s2);padding:0 var(--s4)}
+.searchbox:focus-within{border:2px solid var(--text);padding:0 15px}
+.searchbox svg.ic{width:20px;height:20px;color:var(--text-muted)}
+.searchbox input{flex:1;min-width:0;height:100%;border:0;background:transparent;outline:none;font-size:16px}
+.searchbox input::-webkit-search-cancel-button{-webkit-appearance:none}
+.ell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.nowrap{white-space:nowrap}
+.noti-ic{width:40px;height:40px;flex:0 0 40px;border-radius:var(--r-pill);background:var(--bg);display:inline-flex;align-items:center;justify-content:center}
+.noti-ic svg.ic{width:20px;height:20px}
 .dark .iconbtn:hover{background:rgba(255,255,255,.08)}
 .textbtn{height:44px;padding:0 var(--s3);font-size:14px;font-weight:700;border-radius:var(--r-pill);display:inline-flex;align-items:center;gap:var(--s2);white-space:nowrap}
 .pad{padding:0 var(--s5)}
@@ -66,6 +87,7 @@ ul{list-style:none}
 .row{display:flex;align-items:center;gap:var(--s3)}
 .between{justify-content:space-between}
 .top{align-items:flex-start}
+.row.wrap{flex-wrap:wrap;row-gap:var(--s2)}
 .grow{flex:1;min-width:0}
 .g4{gap:var(--s1)}.g8{gap:var(--s2)}.g12{gap:var(--s3)}.g16{gap:var(--s4)}.g24{gap:var(--s5)}
 .mt8{margin-top:var(--s2)}.mt12{margin-top:var(--s3)}.mt16{margin-top:var(--s4)}.mt24{margin-top:var(--s5)}.mt32{margin-top:var(--s6)}
@@ -107,6 +129,10 @@ svg.ic.s{width:16px;height:16px}
 span.chip.sm::before{display:none}
 .chip.static{cursor:default}
 .dot-act{width:8px;height:8px;border-radius:50%;background:var(--c,var(--text));flex:0 0 8px;display:inline-block}
+.meta{display:flex;align-items:flex-start;gap:var(--s2)}
+.meta .dot-act{margin-top:calc((1.5em - 8px) / 2)}
+.segs{min-width:0}
+.seg{white-space:nowrap}
 .badge{display:inline-flex;align-items:center;gap:var(--s1);height:28px;padding:0 var(--s3);border-radius:var(--r-pill);background:var(--accent-soft);color:var(--text);font-size:14px;font-weight:500;white-space:nowrap}
 .badge.line{background:transparent;border:1px solid var(--border);color:var(--text-muted)}
 .badge.dark{background:var(--text);color:var(--surface)}
@@ -199,6 +225,10 @@ span.chip.sm::before{display:none}
 .field .box{height:56px;border-radius:var(--r-field);background:var(--surface);border:1px solid var(--text-muted);display:flex;align-items:center;padding:0 var(--s4);gap:var(--s3);font-size:16px}
 .field .box:focus-within{border:2px solid var(--text);padding:0 15px}
 .field .box.err{border:2px solid var(--error);padding:0 15px}
+.field .box.tsel{gap:var(--s1)}
+.field .box.tsel select{font-family:var(--font-num);font-variant-numeric:tabular-nums;min-width:44px;padding:0 var(--s1)}
+.field .box.tsel .colon{font-family:var(--font-num);color:var(--text-muted)}
+.field .box.tsel select:focus-visible{outline:2px solid var(--text);outline-offset:-2px;border-radius:var(--r-check)}
 .field select,.field input{flex:1;border:0;background:transparent;min-width:0;height:100%;outline:none}
 .field .msg{display:flex;align-items:center;gap:var(--s2);font-size:14px;color:var(--error)}
 .field .hint{font-size:14px;color:var(--text-muted)}
@@ -215,6 +245,8 @@ span.chip.sm::before{display:none}
 /* ===== 목록 · 설정 ===== */
 .list-row{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) 0;border-bottom:1px solid var(--border);width:100%;text-align:left}
 .list-row:last-child{border-bottom:0}
+.list-row.top{align-items:flex-start}
+.stamp{font-family:var(--font-num);font-size:12px;font-weight:500;line-height:1.4;color:var(--text-muted);white-space:nowrap;flex:0 0 auto}
 .set-row{display:flex;align-items:center;gap:var(--s3);min-height:56px;padding:var(--s3) 0;border-bottom:1px solid var(--border);width:100%;text-align:left}
 .set-row:last-child{border-bottom:0}
 
@@ -223,7 +255,7 @@ span.chip.sm::before{display:none}
 .progress i{display:block;height:100%;background:var(--text)}
 .dark .progress{background:rgba(255,255,255,.18)}
 .dark .progress i{background:var(--surface)}
-.status-pill{display:inline-flex;align-items:center;gap:var(--s2);height:32px;padding:0 var(--s3);border-radius:var(--r-pill);background:rgba(255,255,255,.12);font-size:14px;font-weight:500}
+.status-pill{display:inline-flex;align-items:center;gap:var(--s2);height:32px;padding:0 var(--s3);border-radius:var(--r-pill);background:rgba(255,255,255,.12);font-size:14px;font-weight:500;white-space:nowrap}
 .hero-num{font-family:var(--font-num);font-weight:700;font-size:36px;line-height:1;letter-spacing:-0.02em}
 .count-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s3)}
 .count-grid .c{background:var(--surface);border-radius:var(--r-media);padding:var(--s4);display:flex;flex-direction:column;gap:var(--s1)}
@@ -270,6 +302,7 @@ button.bubble{cursor:pointer}
 .composer .in{flex:1;height:48px;border-radius:var(--r-pill);border:1px solid var(--text-muted);background:var(--surface);display:flex;align-items:center;padding:0 var(--s4)}
 .composer .in:focus-within{border:2px solid var(--text);padding:0 15px}
 .composer input{flex:1;border:0;background:transparent;outline:none;min-width:0;font-size:16px}
+input::placeholder{color:var(--text-muted);opacity:1}
 .composer .send{width:44px;height:44px;border-radius:50%;background:var(--text);color:var(--surface);display:inline-flex;align-items:center;justify-content:center;flex:0 0 44px}
 .composer .send[disabled]{opacity:.4;cursor:not-allowed}
 .composer .len{font-family:var(--font-num);font-size:12px;color:var(--text-muted)}

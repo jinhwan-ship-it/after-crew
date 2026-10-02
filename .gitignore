@@ -5,3 +5,10 @@ shots/r2-*
 shots/r3-*
 shots/r4a-*
 shots/r4b-*
+shots/ci-*
+qa/ci-report.md
+*.zip
+figma/calls/
+figma/export/*.png
+# 다른 작업(브랜드 보드 이미지 38MB) · 공개 저장소에 올릴지는 헤드 결정 뒤 이 줄을 지운다
+brand-board/

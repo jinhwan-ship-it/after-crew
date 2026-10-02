@@ -1,0 +1,53 @@
+name: qa
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Seoul
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 설치
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: MANUAL 잠금 확인
+        run: |
+          want=$(grep -m1 '^manual_sha:' STATUS.md | awk '{print $2}')
+          got=$(sha256sum MANUAL.md | cut -d' ' -f1)
+          echo "STATUS $want"
+          echo "MANUAL $got"
+          if [ "$want" != "$got" ]; then echo "::error::MANUAL.md 해시가 STATUS.md와 다릅니다"; exit 1; fi
+
+      - name: em dash · 금지어 0
+        run: |
+          files="app/*.js app/*.css app/*.html app/data/*.js"
+          if grep -n "—" $files; then echo "::error::em dash가 있습니다"; exit 1; fi
+          if grep -nE "외로움|만남|인연|설렘|말없이" $files; then echo "::error::금지어가 있습니다"; exit 1; fi
+
+      - name: 흐름 검사
+        run: node qa/flow-check.js
+
+      - name: 렌더
+        run: node qa/render.js ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-shots
+          path: |
+            shots/ci-*.png
+            qa/ci-report.md
+          if-no-files-found: ignore

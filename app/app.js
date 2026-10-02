@@ -1,6 +1,7 @@
-/* After Crew · 앱 프로토타입 r4
+/* After Crew · 앱 프로토타입 r6
  * 화면: A 찾기 · B 회차 상세(정보 · 대화=H) · C 당일(동행자) · C' 당일(길잡이) · D 내 동네 지도 · E 회차 열기 · G 나(G-1 프로필 편집 · G-2 설정)
- * 근거: MANUAL v1.6 · DESIGN.md v1.2 · flows/ia.md v1.2
+ *       I 채팅(대화방 목록) · J 알림 · K 검색 · A-1 동네 선택 시트
+ * 근거: MANUAL v1.6 · DESIGN.md v1.4 · flows/ia.md v1.3
  * 규칙: 색·간격은 app.css 토큰만. 날짜는 항상 "9/30 (수) 19:00 → 19:30"처럼 정확히. 사람은 대화방·나 화면에만(인원은 숫자).
  */
 'use strict';
@@ -20,7 +21,7 @@ function defaultState() {
     done: ['c6', 'c2'],               // 완주 순서 (오래된 것 → 최근)
     verified: false, privacy: 'me',
     hostStage: {}, hostCounts: {}, cancelledSessions: [],
-    chat: {}, chatSeen: {}, chatClosed: {},
+    chat: {}, chatSeen: {}, chatClosed: {}, notiSeen: [],
     profile: { nick: '저녁바람', icon: 2, gu: '마포구', acts: ['walk', 'bike'] },
     settings: { notiSession: true, notiChat: true }
   };
@@ -93,6 +94,9 @@ const ICONS = {
   refresh: '<path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/><path d="M3 21v-5h5"/>',
   cal: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>',
   pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+  compass: '<circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-2.1 6.3-6.3 2.1 2.1-6.3z"/>',
   search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   map: '<path d="M14.1 6 8 3 2 6v15l6-3 6.1 3 5.9-3V3z"/><path d="M8 3v15M14 6v15"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
@@ -110,6 +114,8 @@ function icon(n, cls = '') { return `<svg class="ic ${cls}" viewBox="0 0 24 24" 
 const actDot = a => `<span class="dot-act" style="--c:var(--act-${a})" aria-hidden="true"></span>`;
 const actChip = a => `<span class="chip sm static">${actDot(a)}${actLabel(a)}</span>`;
 const plainChip = t => `<span class="chip sm static">${esc(t)}</span>`;
+// 메타 한 줄: 조각 안에서는 줄바꿈하지 않는다 (넘치면 조각 단위로, 구분점은 다음 조각 앞에)
+const segs = a => `<span class="segs">${a.filter(Boolean).map((t, i) => `<span class="seg">${i ? '· ' : ''}${esc(t)}</span>`).join(' ')}</span>`;
 
 /* 프로필 아이콘 (루트 라인 모티프 12종) */
 function pi(idx, size = 40, label = '') {
@@ -130,9 +136,10 @@ function thumbSVG(c, done) {
   const minx = Math.min(...xs), maxx = Math.max(...xs), miny = Math.min(...ys), maxy = Math.max(...ys);
   const w = Math.max(maxx - minx, 1), h = Math.max(maxy - miny, 1), sc = Math.min(56 / w, 40 / h);
   const P = pts.map(([x, y]) => [8 + (x - minx) * sc + (56 - w * sc) / 2, 8 + (y - miny) * sc + (40 - h * sc) / 2]);
-  const col = done ? `var(--act-${c.act})` : 'currentColor';
-  const f = P[0], l = P[P.length - 1];
-  return `<svg viewBox="0 0 72 56" aria-hidden="true"><polyline points="${P.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${f[0].toFixed(1)}" cy="${f[1].toFixed(1)}" r="3" fill="${col}"/><circle cx="${l[0].toFixed(1)}" cy="${l[1].toFixed(1)}" r="4.5" fill="${col}"/></svg>`;
+  const line = P.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+  if (!done) return `<svg viewBox="0 0 72 56" aria-hidden="true"><polyline points="${line}" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="0.1 6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const col = `var(--act-${c.act})`, f = P[0], l = P[P.length - 1];
+  return `<svg viewBox="0 0 72 56" aria-hidden="true"><polyline points="${line}" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${f[0].toFixed(1)}" cy="${f[1].toFixed(1)}" r="3" fill="${col}"/><circle cx="${l[0].toFixed(1)}" cy="${l[1].toFixed(1)}" r="4.5" fill="${col}"/></svg>`;
 }
 
 /**
@@ -203,7 +210,7 @@ function icsFor(sid) {
   const s = typeof sid === 'string' ? sessionById(sid) : sid; if (!s) return;
   const c = course(s.course); const d = dateOf(s.d); const p = n => String(n).padStart(2, '0');
   const ymd = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
-  const body = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//After Crew//prototype r4//KO', 'BEGIN:VEVENT',
+  const body = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//After Crew//prototype r6//KO', 'BEGIN:VEVENT',
     `UID:${s.id}@aftercrew.proto`, `DTSTART;TZID=Asia/Seoul:${ymd}T${s.t.replace(':', '')}00`, `DTEND;TZID=Asia/Seoul:${ymd}T${endOf(s).replace(':', '')}00`,
     `SUMMARY:애프터 크루 · ${c.name}`, `LOCATION:${c.start}`,
     `DESCRIPTION:${actLabel(c.act)} ${kmOf(c)}km · 예상 완주시간 ${minOf(c)}분 · 출발 ${c.start} · 해산 ${c.end}`,
@@ -225,7 +232,7 @@ function replaceNav(h) { location.replace(h); }
 function back() { if (history.length > 1) history.back(); else nav('#/find'); }
 function setTopbarDark(dark) { document.getElementById('statusbar').classList.toggle('dark', !!dark); }
 
-let lastHash = '';
+let lastHash = '', lastTab = 'find';   // 탭 밖 화면(상세·알림 등)은 들어온 탭을 그대로 표시
 function focusKeyOf(el) { if (!el || !el.closest || !el.closest('#view')) return null; return el.id ? '#' + el.id : el.dataset && el.dataset.fk ? `[data-fk="${el.dataset.fk}"]` : null; }
 function render() {
   const h = location.hash || '#/find';
@@ -235,8 +242,11 @@ function render() {
   const keepScroll = same ? v.scrollTop : null;
   const fk = same ? focusKeyOf(document.activeElement) : null;
   closeSheet(true); setTopbarDark(false);
-  let html = '', tab = 'find', scrollBottom = false;
-  if (p[0] === 'find') html = viewFind(p[1]);
+  let html = '', tab = lastTab, scrollBottom = false;
+  if (p[0] === 'find') { html = viewFind(p[1]); tab = 'find'; }
+  else if (p[0] === 'chats') { html = viewChats(); tab = 'chat'; }
+  else if (p[0] === 'notifications') html = viewNotis();
+  else if (p[0] === 'search') { html = viewSearch(); tab = 'find'; }
   else if (p[0] === 'session') { if (p[2] === 'chat') { html = viewChat(p[1]); scrollBottom = true; } else html = viewSession(p[1]); }
   else if (p[0] === 'today') html = viewToday(p[1]);
   else if (p[0] === 'map') { html = viewMap(); tab = 'map'; }
@@ -247,17 +257,35 @@ function render() {
   v.innerHTML = html;
   v.scrollTop = scrollBottom ? v.scrollHeight : keepScroll !== null ? keepScroll : 0;
   if (fk) { const el = v.querySelector(fk); if (el) el.focus({ preventScroll: true }); }
-  renderTabs(tab);
+  const root = (p[0] === 'find' && !p[1]) || p[0] === 'map' || p[0] === 'chats' || (p[0] === 'me' && !p[1]);
+  lastTab = tab; renderTabs(tab, root);
+  if (p[0] === 'search' && !same) { const si = document.getElementById('search-in'); if (si) si.focus({ preventScroll: true }); }
   const sc = v.querySelector('.screen'); setTopbarDark(sc && sc.classList.contains('dark'));
   if (afterRender) { const f = afterRender; afterRender = null; f(); }
 }
-function renderTabs(cur) {
-  const t = [['find', '찾기', 'search', '#/find'], ['map', '지도', 'map', '#/map'], ['me', '나', 'user', '#/me']];
-  document.getElementById('tabbar').innerHTML = t.map(([k, l, i, href]) =>
-    `<button type="button" ${cur === k ? 'aria-current="page"' : ''} onclick="nav('${href}')">${icon(i)}<span>${l}</span></button>`).join('');
+/* 하단 탭 4 (v1.4): 찾기 · 지도 · 채팅 · 나. 찾기 아이콘은 상단 검색(돋보기)과 겹치지 않게 나침반 */
+const countText = n => (n > 99 ? '99+' : String(n));
+function renderTabs(cur, root = true) {
+  const t = [['find', '찾기', 'compass', '#/find'], ['map', '지도', 'map', '#/map'], ['chat', '채팅', 'chat', '#/chats'], ['me', '나', 'user', '#/me']];
+  const u = totalUnread();
+  document.getElementById('tabbar').innerHTML = t.map(([k, l, i, href]) => {
+    const badge = k === 'chat' && u ? `<span class="count" aria-hidden="true">${countText(u)}</span>` : '';
+    const on = cur === k ? (root ? ' class="on" aria-current="page"' : ' class="on"') : '';
+    return `<button type="button"${on} onclick="nav('${href}')"><span class="ico">${icon(i)}${badge}</span><span>${l}</span>${badge ? `<span class="sr">, 새 메시지 ${u}개</span>` : ''}</button>`;
+  }).join('');
 }
 const topbar = (title, { backTo = null, right = '' } = {}) => `<header class="topbar">${backTo ? `<button type="button" class="iconbtn" aria-label="뒤로" onclick="${backTo}">${icon('back')}</button>` : ''}<h1 class="title${backTo ? '' : ' left'}">${title}</h1>${right || (backTo ? '<span class="iconbtn" aria-hidden="true"></span>' : '')}</header>`;
 const reportBtn = sid => `<button type="button" class="iconbtn" aria-label="신고" onclick="reportSheet('${sid}')">${icon('flag')}</button>`;
+/* 탭 첫 화면 상단 바 (v1.4): 오른쪽 아이콘 버튼 44. 알림은 새 알림이 있으면 점 */
+function bellBtn() {
+  const n = unseenNotis().length;
+  return `<button type="button" class="iconbtn badged" aria-label="알림${n ? `, 새 알림 ${n}개` : ''}" onclick="nav('#/notifications')">${icon('bell')}${n ? '<span class="dot-new" aria-hidden="true"></span>' : ''}</button>`;
+}
+const findBar = gu => `<header class="topbar root"><h1 class="sr">${esc(gu)} 모임</h1>
+  <button type="button" class="locbtn" aria-label="내 동네 ${esc(gu)}, 동네 바꾸기" onclick="guSheet()">${icon('pin')}<span>${esc(gu)}</span>${icon('down')}</button>
+  <span class="grow"></span>
+  <button type="button" class="iconbtn" aria-label="검색" onclick="nav('#/search')">${icon('search')}</button>${bellBtn()}
+  <button type="button" class="iconbtn" aria-label="회차 열기" onclick="nav('#/host/new')">${icon('plus')}</button></header>`;
 
 let lastFocus = null;
 function openSheet(html, { label = '시트' } = {}) {
@@ -315,7 +343,7 @@ function viewFind(dayParam) {
       body += `<div class="datehead">${fmtDay(d)}${d === 0 ? ' · 오늘' : ''}</div><div class="pad stack g12">${byDay[d].map(sessionCard).join('')}</div>`;
     });
   }
-  return `<div class="screen">${topbar(`${gu} 모임`, { right: `<button type="button" class="textbtn" onclick="nav('#/host/new')">${icon('plus', 's')} 회차 열기</button>` })}
+  return `<div class="screen">${findBar(gu)}
     <div class="mt8">${strip}</div>${chips}${body}<div class="footer-space"></div></div>`;
 }
 function pinnedCard(s) {
@@ -325,7 +353,7 @@ function pinnedCard(s) {
   const unread = unreadCount(s.id);
   return `<div class="pad mt16"><div class="card on-text" style="gap:var(--s3)">
     <button type="button" class="stack g8" style="text-align:left" onclick="nav('${go}')" aria-label="오늘 회차 ${esc(c.name)}, ${fmtWhen(s)}, ${st}">
-      <span class="row between"><span class="status-pill">${icon('clock', 's')} ${fmtWhen(s)}</span><span class="badge">${st}</span></span>
+      <span class="row between wrap"><span class="status-pill">${icon('clock', 's')} ${fmtWhen(s)}</span><span class="badge">${st}</span></span>
       <span class="h3">${esc(c.name)}</span>
       <span class="row between"><span class="cap muted">${actLabel(c.act)} · ${kmOf(c)}km · ${esc(c.start)}</span>${icon('fwd')}</span>
     </button>
@@ -660,7 +688,7 @@ function viewMap() {
       <span class="thumb">${thumbSVG(c, false)}</span><span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap row g8">${actDot(c.act)}${actLabel(c.act)} · ${kmOf(c)}km</span><span class="time muted">${fmtDay(n.d)} ${n.t}</span></span></button></li>`; }).join('')}</ul>`
     : `<p class="pad cap muted">지금 열린 회차가 있는 안 가본 코스가 없어요.</p>`;
   const acts = Object.keys(D.acts);
-  return `<div class="screen">${topbar('내 동네 지도', { right: `<button type="button" class="textbtn" onclick="nav('#/me/settings')">${icon('shield', 's')} ${S.privacy === 'me' ? '나만 보기' : '공유 허용'}</button>` })}
+  return `<div class="screen">${topbar('내 동네 지도', { right: `<button type="button" class="textbtn" onclick="nav('#/me/settings')">${icon('shield', 's')} ${S.privacy === 'me' ? '나만 보기' : '공유 허용'}</button>${bellBtn()}` })}
     <div class="stack g8 mt8"><div class="pad row between"><span class="h4">다음 코스</span><span class="cap muted">열린 회차가 있는 안 가본 코스</span></div>${recHtml}</div>
     <div class="map full mt16">${mapView({ ids, done, fit, pxw: 390, pxh: 360, interactive: true, draw, label: `내 동네 지도. 완주한 코스 ${done.length}개. 코스를 누르면 자세히 볼 수 있어요` })}</div>
     <div class="pad mt16"><div class="h2">완주한 코스 ${done.length}개</div><div class="cap muted">순위도 경쟁도 없어요</div>
@@ -668,7 +696,7 @@ function viewMap() {
       <div class="strip chips mt16" style="padding:0" role="group" aria-label="코스 필터">${[['all', '전체'], ['done', '완주'], ['notyet', '아직']].map(([k, l]) => `<button type="button" class="chip" data-fk="mtab-${k}" aria-pressed="${mapTab === k}" onclick="mapTab='${k}';render()">${l}</button>`).join('')}</div>
       <ul class="mt8">${list.map(c => { const d = done.includes(c.id); const n = openSessionsOf(c.id).length;
         return `<li><button type="button" class="list-row" onclick="courseSheet('${c.id}')"><span class="thumb">${thumbSVG(c, d)}</span>
-          <span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap muted row g8">${actDot(c.act)}<span>${actLabel(c.act)} · ${kmOf(c)}km${c.gu !== myGu() ? ` · ${c.gu}` : ''}${d ? ' · 완주' : n ? ` · 열린 회차 ${n}` : ''}</span></span></span>${icon('fwd', 'muted')}</button></li>`; }).join('')}</ul>
+          <span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap muted meta">${actDot(c.act)}${segs([actLabel(c.act), `${kmOf(c)}km`, c.gu !== myGu() ? c.gu : '', d ? '완주' : n ? `열린 회차 ${n}` : ''])}</span></span>${icon('fwd', 'muted')}</button></li>`; }).join('')}</ul>
     </div><div class="footer-space"></div></div>`;
 }
 function courseSheet(id) {
@@ -720,15 +748,37 @@ function syncStep3() {
   const r = step3Reason(); syncCta('cta3', r, '미리보기');
   const bad = r === '해산은 출발보다 늦어야 해요';
   const box = document.getElementById('he2box'); if (!box) return;
-  box.classList.toggle('err', bad); document.getElementById('he2').setAttribute('aria-invalid', String(bad));
+  box.classList.toggle('err', bad); ['he2h', 'he2m'].forEach(i => document.getElementById(i).setAttribute('aria-invalid', String(bad)));
   document.getElementById('he2msg').hidden = !bad;
+}
+// 시각 입력: 24시간 · 분 10분 단위 (기기 언어와 관계없이 "19:30")
+const up10 = t => addMin(t, (10 - Number(t.slice(3)) % 10) % 10);
+// 해산 제안: 출발 + 예상 완주시간을 10분 단위로 올림, 자정을 넘기지 않는다(23:50까지)
+function suggestEnd(t, min) { const raw = toMin(t) + min; return raw > 23 * 60 + 50 ? '23:50' : up10(addMin(t, min)); }
+const endHint = (t, min) => toMin(t) + min > 23 * 60 + 50 ? `예상 완주시간 ${min}분이에요. 해산은 자정 전으로 제안했어요.` : `예상 완주시간 ${min}분이라 해산 시각을 제안했어요. 바꿔도 돼요.`;
+const expMin = () => { const c = draftCourse(); return c && routeOf(c).m ? minOf(c) : 40; };
+// 10분 단위가 아닌 저장값은 보여 주되, 다른 값을 고르면 목록에서 뺀다
+function pruneMin(id) { const m = document.getElementById(id + 'm'); if (!m) return; [...m.options].forEach(o => { if (Number(o.value) % 10 && !o.selected) o.remove(); }); }
+function timeSel(id, v, name, extra = '') {
+  const [h, m] = /^\d{2}:\d{2}$/.test(v) ? v.split(':') : ['', ''];
+  const hs = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  const ms = ['00', '10', '20', '30', '40', '50']; if (m && !ms.includes(m)) ms.push(m), ms.sort();
+  const opts = (arr, cur) => arr.map(x => `<option value="${x}" ${x === cur ? 'selected' : ''}>${x}</option>`).join('');
+  return `<select id="${id}h" aria-label="${name} 시" ${extra}>${opts(hs, h)}</select><span class="colon" aria-hidden="true">:</span><select id="${id}m" aria-label="${name} 분" ${extra}>${opts(ms, m)}</select>`;
+}
+const selTime = id => `${document.getElementById(id + 'h').value}:${document.getElementById(id + 'm').value}`;
+function setSelTime(id, v) {
+  const [h, m] = v.split(':'); const hs = document.getElementById(id + 'h'), msel = document.getElementById(id + 'm'); if (!hs || !msel) return;
+  if (![...msel.options].some(o => o.value === m)) msel.add(new Option(m, m));
+  hs.value = h; msel.value = m;
 }
 function onStartTime(v) {
   H.t = v;
-  if (!H.eEdited && /^\d{2}:\d{2}$/.test(v)) { const c = draftCourse(); H.e = addMin(v, c && routeOf(c).m ? minOf(c) : 40); const e = document.getElementById('he2'); if (e) e.value = H.e; }
+  pruneMin('ht');
+  if (!H.eEdited && /^\d{2}:\d{2}$/.test(v)) { H.e = suggestEnd(v, expMin()); setSelTime('he2', H.e); pruneMin('he2'); const hint = document.getElementById('he2hint'); if (hint) hint.textContent = endHint(v, expMin()); }
   syncStep3();
 }
-function onEndTime(v) { H.e = v; H.eEdited = true; syncStep3(); }
+function onEndTime(v) { H.e = v; H.eEdited = true; pruneMin('he2'); syncStep3(); }
 let H = newDraft();
 function draftCourse() {
   if (H.courseMode === 'pick') return course(H.course);
@@ -777,15 +827,15 @@ function viewHostNew(step) {
   }
   if (step === 3) {
     const c = draftCourse(); const min = c && routeOf(c).m ? minOf(c) : 40;
-    if (!H.e && /^\d{2}:\d{2}$/.test(H.t)) H.e = addMin(H.t, min);
+    if (!H.e && /^\d{2}:\d{2}$/.test(H.t)) H.e = suggestEnd(H.t, min);
     const reason = step3Reason(); const badEnd = reason === '해산은 출발보다 늦어야 해요';
     return `<div class="screen">${head}<div class="pad stack g16 mt24"><h2 class="h2">언제, 몇 명과 갈까요?</h2>
       <div class="field"><span class="label" id="dlab">날짜</span><div class="strip fit" style="padding:0" role="group" aria-labelledby="dlab">${Array.from({ length: 7 }, (_, i) => { const x = dateOf(i);
         return `<button type="button" class="day ${i === 0 ? 'today' : ''}" data-fk="eday-${i}" aria-pressed="${H.d === i}" aria-label="${fmtDay(i)}" onclick="H.d=${i};render()"><span class="w">${WD[x.getDay()]}</span><span class="d">${x.getDate()}</span></button>`; }).join('')}</div>${H.d !== null ? `<span class="cap">${fmtDay(H.d)}</span>` : ''}</div>
-      <div class="row g12 top"><div class="field grow"><label for="ht">출발</label><div class="box"><input id="ht" type="time" value="${H.t}" oninput="onStartTime(this.value)"></div></div>
-        <div class="field grow"><label for="he2">해산</label><div class="box ${badEnd ? 'err' : ''}" id="he2box"><input id="he2" type="time" value="${H.e}" aria-invalid="${badEnd}" aria-describedby="he2msg" oninput="onEndTime(this.value)"></div></div></div>
-      <span class="errline" id="he2msg" ${badEnd ? '' : 'hidden'}>${icon('alert', 's')}해산은 출발보다 늦어야 해요</span>
-      <p class="cap muted">예상 완주시간 ${min}분이라 해산 시각을 제안했어요. 바꿔도 돼요.</p>
+      <div class="row g12 top"><div class="field grow" role="group" aria-labelledby="htlab"><span class="label" id="htlab">출발</span><div class="box tsel">${timeSel('ht', H.t, '출발', `onchange="onStartTime(selTime('ht'))"`)}</div></div>
+        <div class="field grow" role="group" aria-labelledby="he2lab"><span class="label" id="he2lab">해산</span><div class="box tsel ${badEnd ? 'err' : ''}" id="he2box">${timeSel('he2', H.e, '해산', `aria-invalid="${badEnd}" aria-describedby="he2msg" onchange="onEndTime(selTime('he2'))"`)}</div></div></div>
+      <span class="errline" id="he2msg" role="alert" ${badEnd ? '' : 'hidden'}>${icon('alert', 's')}해산은 출발보다 늦어야 해요</span>
+      <p class="cap muted" id="he2hint">${endHint(H.t, min)}</p>
       <div class="field"><label for="hc">정원</label><div class="box"><input id="hc" type="number" min="4" max="12" value="${H.cap}" onchange="H.cap=Math.min(12,Math.max(4,Number(this.value)||8));this.value=H.cap"><span class="cap muted">4~12명</span></div><span class="hint">가장 느린 사람에 맞춰 한 사람이 챙길 수 있는 크기예요.</span></div></div>
       <div class="sticky-cta"><button type="button" id="cta3" class="btn primary block" ${reason ? 'disabled' : ''} onclick="nav('#/host/new/4')">${reason || '미리보기'}</button></div></div>`;
   }
@@ -833,7 +883,7 @@ function createSession() {
 function viewMe() {
   const P = S.profile;
   const mine = sessions().filter(s => isApplied(s.id) || isMine(s)).sort((a, b) => a.d - b.d || a.t.localeCompare(b.t));
-  return `<div class="screen">${topbar('나')}<div class="pad stack g16 mt8">
+  return `<div class="screen">${topbar('나', { right: bellBtn() })}<div class="pad stack g16 mt8">
     <div class="card"><div class="row g16">${pi(P.icon, 64, '내 프로필 아이콘')}<div class="grow"><div class="h2">${esc(P.nick)}</div>
       <div class="cap muted">${esc(P.gu)} · 관심 ${P.acts.length ? P.acts.map(actLabel).join(', ') : '없음'}</div></div></div>
       <button type="button" class="btn outline" onclick="PD=null;nav('#/me/edit')">프로필 편집</button>
@@ -898,6 +948,132 @@ function viewSettings() {
       <div class="set-row"><div class="grow"><div class="body">본인인증</div><div class="cap muted">${S.verified ? '인증됨 · 회차를 열 수 있어요' : '회차를 열 때 필요해요'}</div></div>${S.verified ? '<span class="badge">완료</span>' : `<button type="button" class="btn outline" onclick="nav('#/host/new')">인증</button>`}</div>
       <button type="button" class="set-row" onclick="announce('로그아웃은 프로토타입에서 동작하지 않아요')"><span class="grow body">로그아웃</span>${icon('fwd', 'muted')}</button></div>
     <div class="footer-space"></div></div></div>`;
+}
+
+/* ================================================================
+ * A-1 · 동네 선택 시트 (상단 바 "📍마포구 ⌄")
+ * ================================================================ */
+function guSheet() {
+  const cur = myGu();
+  openSheet(`<div><div class="h2">내 동네</div><p class="cap muted mt8">찾기 목록의 기준 동네예요. 프로필 편집의 '내 동네'와 같은 값이에요.</p></div>
+    <div class="stack g8" role="group" aria-label="동네 선택">${D.gus.map(g => `<button type="button" class="opt" aria-pressed="${cur === g}" onclick="setGu('${g}')"><span class="h4 grow">${g}</span>${cur === g ? icon('check') : ''}</button>`).join('')}</div>
+    <button type="button" class="btn outline block" onclick="closeSheet()">닫기</button>`, { label: '내 동네 바꾸기' });
+}
+function setGu(g) {
+  const changed = g !== myGu(); S.profile.gu = g; save(); closeSheet(true);
+  afterRender = () => { const b = document.querySelector('.locbtn'); if (b) b.focus({ preventScroll: true }); };
+  if (location.hash.startsWith('#/find')) render(); else nav('#/find');
+  announce(changed ? `내 동네를 ${g}로 바꿨어요` : `내 동네는 ${g}예요`);
+}
+
+/* ================================================================
+ * J · 알림 (앱 안 목록만 · 푸시 본문 설계는 범위 밖, MANUAL §4)
+ * ================================================================ */
+const hm = d => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+function notis() {
+  if (!S.settings.notiSession) return [];
+  const nowMin = toMin(hm(NOW)); const out = [];
+  sessions().filter(s => isApplied(s.id) || isMine(s)).forEach(s => {
+    const c = course(s.course); const mine = isMine(s);
+    if (isCancelled(s.id)) {
+      if (!mine) out.push({ id: 'x-' + s.id, kind: 'cancel', at: hm(NOW), title: '회차가 취소됐어요', parts: [c.name, fmtWhen(s)], note: '기기 캘린더에 넣었다면 지워 주세요.', href: `#/session/${s.id}` });
+      return;
+    }
+    if (s.d === 0 && toMin(s.t) - 60 <= nowMin && S.hostStage[s.id] !== 'ended') {
+      /* 받은 시각 = 출발 60분 전과 지금(신청·개설 시각) 중 늦은 쪽. 상대 표현("1시간 뒤") 금지 */
+      const at = toMin(s.t) - 60 >= nowMin ? addMin(s.t, -60) : hm(NOW);
+      out.push({ id: 'h-' + s.id, kind: 'soon', at, title: mine ? '내가 여는 회차 출발 알림' : '회차 출발 알림',
+        parts: [c.name, fmtWhen(s), `출발 ${c.start}`], href: mine ? `#/host/today/${s.id}` : `#/today/${s.id}` });
+    }
+  });
+  return out.sort((a, b) => b.at.localeCompare(a.at)).map(n => ({ ...n, at: `${fmtDay(0)} ${n.at}` }));
+}
+const unseenNotis = () => notis().filter(n => !S.notiSeen.includes(n.id));
+function viewNotis() {
+  const list = notis(); const fresh = new Set(unseenNotis().map(n => n.id));
+  if (fresh.size) { S.notiSeen = S.notiSeen.concat([...fresh]); save(); }
+  const head = topbar('알림', { backTo: 'back()', right: `<button type="button" class="iconbtn" aria-label="알림 설정" onclick="nav('#/me/settings')">${icon('gear')}</button>` });
+  if (!list.length) {
+    const off = !S.settings.notiSession;
+    return `<div class="screen">${head}<div class="pad mt24"><div class="empty"><div class="h3">${off ? '회차 알림이 꺼져 있어요' : '새 알림이 없어요'}</div>
+      <p class="body muted">${off ? '설정에서 켜면 출발 1시간 전 알림과 회차 취소 소식이 여기에 와요.' : '신청한 회차의 출발 1시간 전 알림과 회차 취소 소식이 여기에 와요.'}</p>
+      ${off ? `<button type="button" class="btn outline" onclick="nav('#/me/settings')">알림 설정</button>` : ''}</div>
+      <p class="cap muted mt16">대화방 새 메시지는 채팅 탭에서 볼 수 있어요.</p></div></div>`;
+  }
+  return `<div class="screen">${head}<div class="pad mt8"><div class="card" style="padding-top:var(--s2);padding-bottom:var(--s2);gap:0"><ul>${list.map(n => `<li><button type="button" class="list-row top" onclick="nav('${n.href}')">
+      <span class="noti-ic">${icon(n.kind === 'cancel' ? 'alert' : 'clock')}</span>
+      <span class="stack g4 grow"><span class="h4">${n.title}</span><span class="cap muted">${esc(n.parts[0])}</span><span class="time muted">${n.parts[1]}</span>${n.parts[2] ? `<span class="cap muted">${esc(n.parts[2])}</span>` : ''}${n.note ? `<span class="cap muted">${n.note}</span>` : ''}<span class="stamp">${n.at}</span></span>
+      ${fresh.has(n.id) ? '<span class="dot-new static" aria-hidden="true"></span><span class="sr">새 알림</span>' : ''}</button></li>`).join('')}</ul></div>
+    <p class="cap muted mt16">대화방 새 메시지는 채팅 탭에서 볼 수 있어요.</p></div><div class="footer-space"></div></div>`;
+}
+
+/* ================================================================
+ * K · 검색 (코스 이름 · 출발/해산 지점 · 활동 · 동네)
+ * 입력 중에는 결과 영역만 다시 그린다 (DESIGN 7 DON'T: 입력칸에서 화면 전체 다시 그리기 금지)
+ * ================================================================ */
+let searchQ = '';
+function viewSearch() {
+  return `<div class="screen"><header class="topbar search"><button type="button" class="iconbtn" aria-label="뒤로" onclick="back()">${icon('back')}</button><h1 class="sr">검색</h1>
+    <label class="searchbox">${icon('search')}<span class="sr">코스, 출발 지점, 활동으로 검색</span><input id="search-in" type="search" enterkeyhint="search" autocomplete="off" maxlength="30" placeholder="코스, 출발 지점, 활동" value="${esc(searchQ)}" oninput="searchQ=this.value;renderSearch()"></label></header>
+    <p id="search-count" class="sr" aria-live="polite"></p><div id="search-results">${searchResults()}</div><div class="footer-space"></div></div>`;
+}
+let searchCount = '';
+function renderSearch() {
+  const r = document.getElementById('search-results'); if (r) r.innerHTML = searchResults();
+  const c = document.getElementById('search-count'); if (c) c.textContent = searchCount;
+}
+function setSearch(t) { searchQ = t; const i = document.getElementById('search-in'); if (i) { i.value = t; i.focus(); } renderSearch(); }
+function searchResults() {
+  const q = searchQ.trim().toLowerCase();
+  searchCount = '';
+  if (!q) {
+    const quick = Object.keys(D.acts).map(actLabel).concat(D.gus);
+    return `<div class="pad mt16"><p class="body muted">코스 이름, 출발 지점, 활동, 동네로 찾아요.</p>
+      <div class="row g8 mt12" style="flex-wrap:wrap" role="group" aria-label="빠른 검색">${quick.map(t => `<button type="button" class="chip" onclick="setSearch('${t}')">${t}</button>`).join('')}</div></div>`;
+  }
+  const match = c => [c.name, c.start, c.end, actLabel(c.act), c.gu].some(t => String(t).toLowerCase().includes(q));
+  const ss = sessions().filter(s => !isCancelled(s.id) && s.d >= 0 && s.d <= 6 && match(course(s.course))).sort((a, b) => a.d - b.d || a.t.localeCompare(b.t));
+  const cs = allCourses().filter(match);
+  searchCount = ss.length || cs.length ? `열린 회차 ${ss.length}개, 코스 ${cs.length}개` : '맞는 회차와 코스가 없어요';
+  if (!ss.length && !cs.length) {
+    return `<div class="pad mt24"><div class="empty"><div class="h3">‘${esc(searchQ.trim())}’에 맞는 회차와 코스가 없어요</div>
+      <p class="body muted">코스 이름, 출발 지점(예: 망원나들목), 활동(산책·조깅·러닝·라이트 바이크)으로 찾아보세요.</p></div></div>`;
+  }
+  return `${ss.length ? `<div class="datehead">열린 회차 ${ss.length}</div><div class="pad stack g12">${ss.map(sessionCard).join('')}</div>` : ''}
+    ${cs.length ? `<div class="datehead">코스 ${cs.length}</div><div class="pad"><ul>${cs.map(c => { const d = S.done.includes(c.id); const n = openSessionsOf(c.id).length;
+      return `<li><button type="button" class="list-row" onclick="courseSheet('${c.id}')"><span class="thumb">${thumbSVG(c, d)}</span>
+        <span class="stack g4 grow"><span class="h4">${esc(c.name)}</span><span class="cap muted meta">${actDot(c.act)}${segs([actLabel(c.act), `${kmOf(c)}km`, c.gu !== myGu() ? c.gu : '', d ? '완주' : n ? `열린 회차 ${n}` : ''])}</span></span>${icon('fwd', 'muted')}</button></li>`; }).join('')}</ul></div>` : ''}`;
+}
+
+/* ================================================================
+ * I · 채팅 (내 회차 대화방 목록 · F-11)
+ * 목록에는 사람 이름·아이콘을 쓰지 않는다(MANUAL F-12): 보낸 사람은 역할(길잡이·동행자·나)로만
+ * ================================================================ */
+const myRooms = () => sessions().filter(s => canChat(s) && !chatClosedFor(s)).sort((a, b) => a.d - b.d || a.t.localeCompare(b.t));
+const totalUnread = () => myRooms().reduce((n, s) => n + unreadCount(s.id), 0);
+function lastLine(s) {
+  const all = chatMsgs(s); const m = all[all.length - 1];
+  if (m.who === 'sys') return { who: '', text: m.text, t: '' };
+  const role = m.who === 'me' || (m.guide && isMine(s)) ? '나' : m.guide ? '길잡이' : '동행자';
+  return { who: role, text: m.text, t: m.t };
+}
+function viewChats() {
+  const rooms = myRooms();
+  const head = topbar('채팅', { right: bellBtn() });
+  if (!rooms.length) {
+    return `<div class="screen">${head}<div class="pad mt8"><div class="empty"><div class="h3">아직 들어간 대화방이 없어요</div>
+      <p class="body muted">회차를 신청하거나 열면 그 회차의 대화방이 여기에 생겨요. 대화방은 해산 24시간 뒤 사라져요.</p>
+      <button type="button" class="btn outline" onclick="nav('#/find')">모임 찾기</button></div></div></div>`;
+  }
+  return `<div class="screen">${head}<p class="pad cap muted mt8">회차마다 대화방이 하나씩 있어요. 해산 24시간 뒤 사라져요.</p>
+    <div class="pad mt8"><ul>${rooms.map(s => { const c = course(s.course); const u = unreadCount(s.id); const L = lastLine(s);
+      const state = isCancelled(s.id) ? '취소됨' : S.hostStage[s.id] === 'ended' ? '해산' : '';
+      return `<li><button type="button" class="list-row room" onclick="nav('#/session/${s.id}/chat')">
+        <span class="thumb">${thumbSVG(c, S.done.includes(c.id))}</span>
+        <span class="stack g4 grow"><span class="row between g8"><span class="h4 ell">${esc(c.name)}</span>${L.t ? `<span class="stamp">${L.t}</span>` : ''}</span>
+          <span class="time muted">${state ? `${state} · ` : ''}${fmtWhen(s)}</span>
+          <span class="row between g8"><span class="cap muted ell">${L.who ? `${L.who} · ` : ''}${esc(L.text)}</span>${u ? `<span class="count" aria-hidden="true">${countText(u)}</span><span class="sr">, 새 메시지 ${u}개</span>` : ''}</span></span></button></li>`; }).join('')}</ul></div>
+    <div class="footer-space"></div></div>`;
 }
 
 function notFound() {
