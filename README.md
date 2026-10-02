@@ -28,8 +28,8 @@
 ```
 npm install
 npx playwright install chromium
-node qa/flow-check.js      # 상태 흐름 45항목, 마지막 줄 PASS
-node qa/render.js r7       # 390 · 360 렌더와 실측 (shots/, qa/r7-report.md)
+node qa/flow-check.js      # 상태 흐름 50항목, 마지막 줄 PASS
+node qa/render.js r8       # 390 · 360 렌더와 실측 (shots/, qa/r8-report.md)
 ```
 
 push와 PR마다 GitHub Actions(`.github/workflows/qa.yml`)가 같은 검사와 MANUAL 잠금 · em dash · 금지어 확인을 돌린다.
